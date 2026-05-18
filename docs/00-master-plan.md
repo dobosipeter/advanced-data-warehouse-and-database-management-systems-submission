@@ -116,7 +116,7 @@ Within Phase 2B, these can be parallelized:
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Database engine | PostgreSQL | Open-source, Docker-friendly, good for both OLTP and DW demo |
+| Database engine | PostgreSQL | Open-source, Docker-friendly, supports OLTP + DW schemas in one deployable engine; see `01-context-registry.md` for alternatives considered |
 | Frontend | Streamlit | Satisfies "GUI" requirement with minimal effort |
 | Backend API | FastAPI | Clean REST API, auto Swagger docs for demo |
 | ETL tool | Python scripts | More portable than SSIS, demonstrates the concept equally well |

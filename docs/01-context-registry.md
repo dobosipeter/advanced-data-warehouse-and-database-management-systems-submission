@@ -136,10 +136,12 @@ SQL Server remains a defensible alternative if strict course-technology alignmen
   - `GET /sensors/{id}/measurements` — historical measurements
   - `GET /locations/{id}/latest` — latest values
 - **Scope:** Budapest (primary), optionally Vienna and Berlin
+- **Default Budapest bbox:** `18.9250,47.3494,19.3340,47.6130`
 - **Pollutants:** PM2.5, PM10, NO₂, O₃
 - **Historical window:** 3–6 months
 - **Rate limits:** Check API docs; may need API key for higher limits
 - **API Key env var:** `OPENAQ_API_KEY`
+- **Pagination:** OpenAQ API v3 uses `page` and `limit` query parameters.
 
 ---
 

@@ -90,7 +90,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #52 |
-| Status | Blocked (needs WI-02) |
+| Status | In Progress |
 | Dependencies | WI-02 |
 | Inputs | OpenAQ API docs (context registry §4), OLTP schema (§5) |
 | Outputs | `workers/ingest.py` — working ingestion script |
@@ -98,7 +98,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 
 **Scope:**
 - OpenAQ API v3 client class (locations, sensors, parameters, measurements endpoints)
-- Pagination handling (API uses cursor-based pagination)
+- Pagination handling (OpenAQ API v3 uses `page` and `limit`)
 - Error handling + retry logic
 - Insert raw data into staging tables
 - Upsert locations/sensors/parameters into OLTP tables

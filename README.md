@@ -25,6 +25,7 @@ The project ingests air quality measurements from the OpenAQ API, stores operati
 3. Open the services:
 
    - Frontend: http://localhost:8501
-   - API docs: http://localhost:8000/docs
+   - API docs: http://localhost:8001/docs
+   - Reverse proxy: http://localhost:8080
 
 The first implementation phase creates the scaffold. Database schemas, ingestion logic, ETL, and dashboards are added by later work items.

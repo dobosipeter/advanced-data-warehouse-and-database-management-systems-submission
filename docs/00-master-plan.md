@@ -52,7 +52,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 
 ### Phase 0: Foundation (Do First)
 - [x] Project scaffolding & repo structure (Issue #50)
-- [ ] PostgreSQL setup & schema init (Issue #51)
+- [x] PostgreSQL setup & schema init (Issue #51)
 - [ ] Docker Compose local dev (Issue #54)
 
 ### Phase 1: Data Pipeline (Depends on Phase 0)

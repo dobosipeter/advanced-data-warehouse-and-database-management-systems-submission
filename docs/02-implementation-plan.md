@@ -47,7 +47,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #51 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-01 |
 | Inputs | Schema design from context registry §5 |
 | Outputs | SQL init scripts in database/init/, working PostgreSQL container |

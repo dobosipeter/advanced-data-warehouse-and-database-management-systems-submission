@@ -113,7 +113,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #57 |
-| Status | Blocked (needs WI-02) |
+| Status | Done |
 | Dependencies | WI-02 |
 | Inputs | Table designs from context registry §5 |
 | Outputs | Refined SQL DDL with all constraints, sample data verification |
@@ -127,7 +127,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #53 |
-| Status | Blocked (needs WI-04) |
+| Status | Ready |
 | Dependencies | WI-04 |
 | Inputs | Working ingestion script |
 | Outputs | Incremental mode working, scheduler config |
@@ -148,7 +148,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #58 |
-| Status | Blocked (needs WI-04) |
+| Status | Ready |
 | Dependencies | WI-04, WI-05 |
 | Inputs | ThresholdRule table, MeasurementRaw table |
 | Outputs | Working alert generation logic |

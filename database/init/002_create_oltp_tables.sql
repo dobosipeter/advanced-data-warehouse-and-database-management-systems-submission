@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS oltp.ingestion_run_log (
     records_inserted INTEGER NOT NULL DEFAULT 0 CHECK (records_inserted >= 0),
     records_failed INTEGER NOT NULL DEFAULT 0 CHECK (records_failed >= 0),
     error_message TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT ingestion_run_finished_after_started CHECK (finished_at IS NULL OR finished_at >= started_at)
 );
 
 CREATE TABLE IF NOT EXISTS oltp.parameter (
@@ -20,7 +21,10 @@ CREATE TABLE IF NOT EXISTS oltp.parameter (
     preferred_unit TEXT NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT parameter_code_not_blank CHECK (btrim(code) <> ''),
+    CONSTRAINT parameter_display_name_not_blank CHECK (btrim(display_name) <> ''),
+    CONSTRAINT parameter_unit_not_blank CHECK (btrim(preferred_unit) <> '')
 );
 
 CREATE TABLE IF NOT EXISTS oltp.location (
@@ -36,8 +40,12 @@ CREATE TABLE IF NOT EXISTS oltp.location (
     first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     raw_payload JSONB,
+    CONSTRAINT location_name_not_blank CHECK (btrim(name) <> ''),
+    CONSTRAINT location_city_not_blank CHECK (btrim(city) <> ''),
+    CONSTRAINT location_country_not_blank CHECK (btrim(country) <> ''),
     CONSTRAINT location_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
-    CONSTRAINT location_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+    CONSTRAINT location_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+    CONSTRAINT location_seen_range CHECK (last_seen_at >= first_seen_at)
 );
 
 CREATE TABLE IF NOT EXISTS oltp.sensor (
@@ -49,7 +57,9 @@ CREATE TABLE IF NOT EXISTS oltp.sensor (
     is_active BOOLEAN NOT NULL DEFAULT true,
     first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    raw_payload JSONB
+    raw_payload JSONB,
+    CONSTRAINT sensor_unit_not_blank CHECK (btrim(unit) <> ''),
+    CONSTRAINT sensor_seen_range CHECK (last_seen_at >= first_seen_at)
 );
 
 CREATE TABLE IF NOT EXISTS oltp.measurement_raw (
@@ -61,6 +71,7 @@ CREATE TABLE IF NOT EXISTS oltp.measurement_raw (
     ingestion_run_id BIGINT REFERENCES oltp.ingestion_run_log(ingestion_run_id),
     raw_payload JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT measurement_unit_not_blank CHECK (btrim(unit) <> ''),
     CONSTRAINT measurement_value_reasonable CHECK (value > -1000 AND value < 100000)
 );
 
@@ -73,6 +84,7 @@ CREATE TABLE IF NOT EXISTS oltp.threshold_rule (
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT threshold_rule_city_not_blank CHECK (btrim(city) <> ''),
     UNIQUE (parameter_id, city, warning_level)
 );
 
@@ -85,6 +97,7 @@ CREATE TABLE IF NOT EXISTS oltp.pollution_alert (
     generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     reviewed_at TIMESTAMPTZ,
     notes TEXT,
+    CONSTRAINT pollution_alert_reviewed_after_generated CHECK (reviewed_at IS NULL OR reviewed_at >= generated_at),
     UNIQUE (measurement_id, threshold_rule_id)
 );
 
@@ -95,5 +108,7 @@ CREATE TABLE IF NOT EXISTS staging.raw_api_response (
     request_url TEXT NOT NULL,
     request_params JSONB,
     response_body JSONB NOT NULL,
-    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT raw_api_response_endpoint_not_blank CHECK (btrim(source_endpoint) <> ''),
+    CONSTRAINT raw_api_response_url_not_blank CHECK (btrim(request_url) <> '')
 );

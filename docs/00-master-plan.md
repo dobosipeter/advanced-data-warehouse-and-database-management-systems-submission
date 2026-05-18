@@ -57,7 +57,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 
 ### Phase 1: Data Pipeline (Depends on Phase 0)
 - [x] OpenAQ API client & ingestion worker (Issue #52)
-- [ ] Operational database tables (Issue #57)
+- [x] Operational database tables (Issue #57)
 - [ ] Incremental load & scheduling (Issue #53)
 
 ### Phase 2A: DBMS Layer (Depends on Phase 1)

@@ -174,20 +174,20 @@ advanced-data-warehouse-and-database-management-systems-submission/
 │   ├── Dockerfile
 │   ├── app.py                       (Streamlit main)
 │   ├── pages/                       (multi-page Streamlit)
-│   └── requirements.txt
+│   └── pyproject.toml
 ├── api/
 │   ├── Dockerfile
 │   ├── main.py                      (FastAPI app)
 │   ├── routers/
 │   ├── models/
-│   └── requirements.txt
+│   └── pyproject.toml
 ├── workers/
 │   ├── Dockerfile
 │   ├── ingest.py                    (OpenAQ ingestion)
 │   ├── etl.py                       (Staging → DW transform)
 │   ├── train_model.py               (ML training)
 │   ├── predict.py                   (Generate predictions)
-│   └── requirements.txt
+│   └── pyproject.toml
 ├── database/
 │   ├── init/
 │   │   ├── 001_create_schemas.sql

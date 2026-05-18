@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "air-quality-frontend"
+version = "0.1.0"
+description = "Streamlit frontend for the Air Quality Intelligence System."
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit==1.41.1",
+    "requests==2.32.3",
+    "pandas==2.2.3",
+    "plotly==5.24.1",
+]
+
+[tool.setuptools]
+py-modules = ["app"]

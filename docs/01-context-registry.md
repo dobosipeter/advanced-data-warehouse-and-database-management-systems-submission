@@ -11,14 +11,27 @@ This document records **what is found where** across all relevant locations for 
 ### Submission Repository (Working Repo)
 ```
 ~/git/advanced-data-warehouse-and-database-management-systems-submission/
+├── .github/
+│   └── workflows/
 ├── .git/
 ├── .gitignore
+├── .env.example
+├── docker-compose.yml
 ├── README.md
+├── api/
+├── database/
+├── diagrams/
 ├── docs/
 │   ├── 00-master-plan.md          ← Orchestrator plan (this project)
 │   ├── 01-context-registry.md     ← THIS FILE
 │   └── 02-implementation-plan.md  ← Detailed work items
-└── (project code will be built here)
+├── frontend/
+├── reports/
+├── reverse-proxy/
+├── scripts/
+├── slides/
+├── tests/
+└── workers/
 ```
 
 ### Planning & Requirements (Read-Only Reference)

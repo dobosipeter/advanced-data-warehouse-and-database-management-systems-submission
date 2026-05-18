@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-local runtime data
+postgres_data/
+backups/
+*.dump
+*.sql.gz
+
+# Generated reports and slides
+reports/**/*.pdf
+slides/**/*.pdf

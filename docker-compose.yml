@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16
+    container_name: air-quality-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-air_quality}
+      POSTGRES_USER: ${POSTGRES_USER:-air_quality}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-air_quality} -d ${POSTGRES_DB:-air_quality}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: python:3.12-slim
+    container_name: air-quality-api
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: python:3.12-slim
+    container_name: air-quality-frontend
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && streamlit run app.py --server.address 0.0.0.0 --server.port 8501"
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - api
+
+  worker:
+    image: python:3.12-slim
+    container_name: air-quality-worker
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && python ingest.py --help"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./workers:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:

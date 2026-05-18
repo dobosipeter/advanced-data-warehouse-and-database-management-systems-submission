@@ -56,7 +56,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 - [x] Docker Compose local dev (Issue #54)
 
 ### Phase 1: Data Pipeline (Depends on Phase 0)
-- [ ] OpenAQ API client & ingestion worker (Issue #52)
+- [x] OpenAQ API client & ingestion worker (Issue #52)
 - [ ] Operational database tables (Issue #57)
 - [ ] Incremental load & scheduling (Issue #53)
 

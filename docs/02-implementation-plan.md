@@ -90,7 +90,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #52 |
-| Status | In Progress |
+| Status | Done |
 | Dependencies | WI-02 |
 | Inputs | OpenAQ API docs (context registry §4), OLTP schema (§5) |
 | Outputs | `workers/ingest.py` — working ingestion script |

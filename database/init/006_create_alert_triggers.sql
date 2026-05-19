@@ -1,7 +1,8 @@
 CREATE TABLE IF NOT EXISTS audit.pollution_alert_outbox (
     alert_outbox_id BIGSERIAL PRIMARY KEY,
     pollution_alert_id BIGINT NOT NULL REFERENCES oltp.pollution_alert(pollution_alert_id) ON DELETE CASCADE,
-    measurement_id BIGINT NOT NULL REFERENCES oltp.measurement_raw(measurement_id) ON DELETE CASCADE,
+    measurement_id BIGINT NOT NULL,
+    measurement_measured_at TIMESTAMPTZ NOT NULL,
     threshold_rule_id BIGINT NOT NULL REFERENCES oltp.threshold_rule(threshold_rule_id),
     event_type TEXT NOT NULL CHECK (event_type IN ('created', 'status_changed')),
     previous_status TEXT CHECK (previous_status IS NULL OR previous_status IN ('open', 'reviewed', 'closed')),
@@ -9,6 +10,8 @@ CREATE TABLE IF NOT EXISTS audit.pollution_alert_outbox (
     payload JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at TIMESTAMPTZ,
+    FOREIGN KEY (measurement_id, measurement_measured_at)
+        REFERENCES oltp.measurement_raw(measurement_id, measured_at) ON DELETE CASCADE,
     CONSTRAINT pollution_alert_outbox_status_change
         CHECK (event_type = 'created' OR previous_status IS DISTINCT FROM current_status)
 );
@@ -41,8 +44,8 @@ BEGIN
     LIMIT 1;
 
     IF matched_rule_id IS NOT NULL THEN
-        INSERT INTO oltp.pollution_alert (measurement_id, threshold_rule_id, alert_level, status)
-        VALUES (NEW.measurement_id, matched_rule_id, matched_warning_level, 'open')
+        INSERT INTO oltp.pollution_alert (measurement_id, measurement_measured_at, threshold_rule_id, alert_level, status)
+        VALUES (NEW.measurement_id, NEW.measured_at, matched_rule_id, matched_warning_level, 'open')
         ON CONFLICT (measurement_id, threshold_rule_id) DO NOTHING;
     END IF;
 
@@ -62,6 +65,7 @@ BEGIN
     INSERT INTO audit.pollution_alert_outbox (
         pollution_alert_id,
         measurement_id,
+        measurement_measured_at,
         threshold_rule_id,
         event_type,
         previous_status,
@@ -71,6 +75,7 @@ BEGIN
     VALUES (
         NEW.pollution_alert_id,
         NEW.measurement_id,
+        NEW.measurement_measured_at,
         NEW.threshold_rule_id,
         CASE
             WHEN TG_OP = 'INSERT' THEN 'created'

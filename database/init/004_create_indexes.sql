@@ -13,14 +13,17 @@ CREATE INDEX IF NOT EXISTS idx_oltp_sensor_location
 CREATE INDEX IF NOT EXISTS idx_oltp_sensor_parameter
     ON oltp.sensor (parameter_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_oltp_measurement_sensor_time
-    ON oltp.measurement_raw (sensor_id, measured_at);
-
 CREATE INDEX IF NOT EXISTS idx_oltp_measurement_measured_at_brin
     ON oltp.measurement_raw USING BRIN (measured_at);
 
 CREATE INDEX IF NOT EXISTS idx_oltp_measurement_run
     ON oltp.measurement_raw (ingestion_run_id);
+
+CREATE INDEX IF NOT EXISTS idx_oltp_measurement_sensor
+    ON oltp.measurement_raw (sensor_id);
+
+CREATE INDEX IF NOT EXISTS idx_oltp_measurement_time_sensor
+    ON oltp.measurement_raw (measured_at DESC, sensor_id);
 
 CREATE INDEX IF NOT EXISTS idx_oltp_threshold_rule_active
     ON oltp.threshold_rule (parameter_id, city)

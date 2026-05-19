@@ -247,7 +247,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #63 |
-| Status | Blocked (needs WI-05) |
+| Status | Done |
 | Dependencies | WI-05 |
 | Inputs | Tables with data |
 | Outputs | Applied indexes and partitioning |

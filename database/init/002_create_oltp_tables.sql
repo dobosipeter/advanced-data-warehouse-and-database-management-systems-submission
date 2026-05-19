@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS oltp.sensor (
 );
 
 CREATE TABLE IF NOT EXISTS oltp.measurement_raw (
-    measurement_id BIGSERIAL PRIMARY KEY,
+    measurement_id BIGSERIAL NOT NULL,
     sensor_id BIGINT NOT NULL REFERENCES oltp.sensor(sensor_id),
     measured_at TIMESTAMPTZ NOT NULL,
     value NUMERIC(12, 4) NOT NULL,
@@ -71,9 +71,38 @@ CREATE TABLE IF NOT EXISTS oltp.measurement_raw (
     ingestion_run_id BIGINT REFERENCES oltp.ingestion_run_log(ingestion_run_id),
     raw_payload JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (measurement_id, measured_at),
+    UNIQUE (sensor_id, measured_at),
     CONSTRAINT measurement_unit_not_blank CHECK (btrim(unit) <> ''),
     CONSTRAINT measurement_value_reasonable CHECK (value > -1000 AND value < 100000)
-);
+) PARTITION BY RANGE (measured_at);
+
+CREATE TABLE IF NOT EXISTS oltp.measurement_raw_default
+    PARTITION OF oltp.measurement_raw DEFAULT;
+
+DO $$
+DECLARE
+    partition_start DATE := DATE '2025-01-01';
+    partition_end DATE := DATE '2027-02-01';
+    current_month DATE;
+    next_month DATE;
+    partition_name TEXT;
+BEGIN
+    current_month := partition_start;
+    WHILE current_month < partition_end LOOP
+        next_month := current_month + INTERVAL '1 month';
+        partition_name := format('measurement_raw_%s', to_char(current_month, 'YYYY_MM'));
+
+        EXECUTE format(
+            'CREATE TABLE IF NOT EXISTS oltp.%I PARTITION OF oltp.measurement_raw FOR VALUES FROM (%L) TO (%L)',
+            partition_name,
+            current_month::timestamptz,
+            next_month::timestamptz
+        );
+
+        current_month := next_month;
+    END LOOP;
+END $$;
 
 CREATE TABLE IF NOT EXISTS oltp.threshold_rule (
     threshold_rule_id BIGSERIAL PRIMARY KEY,
@@ -90,13 +119,16 @@ CREATE TABLE IF NOT EXISTS oltp.threshold_rule (
 
 CREATE TABLE IF NOT EXISTS oltp.pollution_alert (
     pollution_alert_id BIGSERIAL PRIMARY KEY,
-    measurement_id BIGINT NOT NULL REFERENCES oltp.measurement_raw(measurement_id),
+    measurement_id BIGINT NOT NULL,
+    measurement_measured_at TIMESTAMPTZ NOT NULL,
     threshold_rule_id BIGINT NOT NULL REFERENCES oltp.threshold_rule(threshold_rule_id),
     alert_level TEXT NOT NULL CHECK (alert_level IN ('low', 'moderate', 'high', 'critical')),
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewed', 'closed')),
     generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     reviewed_at TIMESTAMPTZ,
     notes TEXT,
+    FOREIGN KEY (measurement_id, measurement_measured_at)
+        REFERENCES oltp.measurement_raw(measurement_id, measured_at),
     CONSTRAINT pollution_alert_reviewed_after_generated CHECK (reviewed_at IS NULL OR reviewed_at >= generated_at),
     UNIQUE (measurement_id, threshold_rule_id)
 );

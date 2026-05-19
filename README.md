@@ -50,6 +50,15 @@ Run the end-to-end scheduled pipeline entrypoint:
 ./scripts/run_pipeline.sh
 ```
 
+The pipeline script supports the following modes:
+
+- `./scripts/run_pipeline.sh full` — incremental ingest → ETL → predict
+- `./scripts/run_pipeline.sh ingest-etl` — incremental ingest → ETL
+- `./scripts/run_pipeline.sh predict-only` — generate predictions from the latest trained model
+- `./scripts/run_pipeline.sh train-predict` — retrain the PM2.5 model, then predict
+
+Each run writes a timestamped log under `logs/` plus `logs/pipeline-latest.log` and `logs/pipeline-latest.status` so scheduled executions leave an audit trail.
+
 The API now exposes the operational and analytical endpoints from PostgreSQL:
 
 - `GET /health`
@@ -101,7 +110,7 @@ New PM2.5 measurements now also drive the operational alert workflow: the ingest
 
 The ingestion worker now runs with explicit transaction boundaries: each location is processed as a batch transaction, each sensor runs inside a savepoint, failed sensor batches are rolled back without corrupting successful batches, and `oltp.ingestion_run_log` ends as `succeeded`, `partial`, or `failed` with summarized error details.
 
-An example cron configuration is provided in `scripts/air_quality_pipeline.crontab`. It runs the pipeline every 3 hours:
+An example cron configuration is provided in `scripts/air_quality_pipeline.crontab`. It refreshes ingest+ETL every 3 hours and runs prediction daily:
 
 ```bash
 crontab scripts/air_quality_pipeline.crontab

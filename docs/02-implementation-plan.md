@@ -417,7 +417,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #71 |
-| Status | Blocked (needs WI-06, WI-15, WI-18) |
+| Status | Done |
 | Dependencies | WI-06, WI-15, WI-18 |
 | Inputs | All pipeline components working |
 | Outputs | End-to-end automated pipeline |
@@ -429,6 +429,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - Logging: pipeline run status
 - Cron schedule: every 3 hours for ingest+ETL, daily for prediction
 - Verify with a demo: trigger pipeline, see dashboard update
+- Implemented with `full`, `ingest-etl`, `predict-only`, and `train-predict` modes plus `logs/pipeline-latest.status` for the latest run outcome
 
 ---
 

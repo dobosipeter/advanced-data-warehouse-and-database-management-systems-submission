@@ -503,7 +503,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #72 |
-| Status | Blocked (needs Phase 2A substantially complete) |
+| Status | Done |
 | Dependencies | WI-07 through WI-13, WI-23 |
 | Inputs | Working system, architecture diagram, LaTeX template (context registry §9) |
 | Outputs | `reports/dbms/report.tex` → `reports/dbms/report.pdf` |
@@ -524,7 +524,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #73 |
-| Status | Blocked (needs Phase 2B substantially complete) |
+| Status | Done |
 | Dependencies | WI-14 through WI-20, WI-23 |
 | Inputs | Working system, architecture diagram, LaTeX template |
 | Outputs | `reports/dw/report.tex` → `reports/dw/report.pdf` |
@@ -545,7 +545,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #74 |
-| Status | Blocked (needs WI-24) |
+| Status | Done |
 | Dependencies | WI-24, system working |
 | Inputs | DBMS demo script from context registry §11, working system |
 | Outputs | `slides/dbms/slides.tex` → `slides/dbms/slides.pdf` |
@@ -567,7 +567,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #75 |
-| Status | Blocked (needs WI-25) |
+| Status | Done |
 | Dependencies | WI-25, system working |
 | Inputs | DW demo script from context registry §11, working system |
 | Outputs | `slides/dw/slides.tex` → `slides/dw/slides.pdf` |

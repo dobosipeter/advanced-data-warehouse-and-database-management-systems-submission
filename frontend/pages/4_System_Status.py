@@ -5,6 +5,7 @@ from api_client import api_get, dataframe_from
 
 st.set_page_config(page_title="System Status", layout="wide")
 st.title("System Status")
+st.caption("API health and recent ingestion run history.")
 
 health = api_get("/health", default={})
 runs = dataframe_from(api_get("/ingestion-runs", default=[]))

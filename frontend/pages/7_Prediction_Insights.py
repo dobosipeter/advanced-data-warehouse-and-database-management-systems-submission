@@ -16,6 +16,7 @@ from dashboard_support import (
 
 st.set_page_config(page_title="Prediction Insights", layout="wide")
 st.title("Prediction Insights")
+st.caption("Compare ML-predicted PM concentrations against observed actuals with error analysis.")
 
 locations = load_locations()
 measurements = load_measurements()
@@ -83,14 +84,30 @@ metrics[3].metric(
 figure = go.Figure()
 if not filtered_measurements.empty:
     actual_series = filtered_measurements.sort_values("measured_at")
-    figure.add_trace(
-        go.Scatter(
-            x=actual_series["measured_at"],
-            y=actual_series["value"],
-            mode="lines+markers",
-            name="Actual",
+    # Aggregate to daily mean when many stations are shown to avoid spaghetti
+    if actual_series["location_name"].nunique() > 3:
+        actual_series = (
+            actual_series.assign(day=actual_series["measured_at"].dt.date)
+            .groupby("day", as_index=False)["value"]
+            .mean()
         )
-    )
+        figure.add_trace(
+            go.Scatter(
+                x=actual_series["day"],
+                y=actual_series["value"],
+                mode="lines+markers",
+                name="Actual (daily avg)",
+            )
+        )
+    else:
+        figure.add_trace(
+            go.Scatter(
+                x=actual_series["measured_at"],
+                y=actual_series["value"],
+                mode="lines+markers",
+                name="Actual",
+            )
+        )
 
 prediction_series = filtered_predictions.sort_values("target_measured_at")
 figure.add_trace(

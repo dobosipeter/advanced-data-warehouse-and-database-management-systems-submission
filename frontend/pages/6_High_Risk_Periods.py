@@ -19,6 +19,7 @@ WEEKDAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturd
 
 st.set_page_config(page_title="High-Risk Periods", layout="wide")
 st.title("High-Risk Periods")
+st.caption("Identify when and where alerts concentrate — by weekday, hour, pollutant, and station.")
 
 locations = load_locations()
 measurements = load_measurements()
@@ -79,6 +80,8 @@ metrics[1].metric("Critical alerts", int((filtered_alerts["alert_level"] == "cri
 metrics[2].metric("Stations affected", int(filtered_alerts["location_name"].nunique()))
 metrics[3].metric("Pollutants affected", int(filtered_alerts["parameter_code"].nunique()))
 
+st.divider()
+
 left, right = st.columns([2, 1])
 
 with left:
@@ -99,6 +102,8 @@ with right:
     severity_chart.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10), showlegend=False)
     st.plotly_chart(severity_chart, use_container_width=True)
 
+st.divider()
+
 lower_left, lower_right = st.columns(2)
 
 with lower_left:
@@ -118,6 +123,8 @@ with lower_right:
     station_chart = px.bar(station_counts.head(10), x="location_name", y="count", color="location_name")
     station_chart.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10), showlegend=False)
     st.plotly_chart(station_chart, use_container_width=True)
+
+st.divider()
 
 st.subheader("Recent high-risk alerts")
 st.dataframe(

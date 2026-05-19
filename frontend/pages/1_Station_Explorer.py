@@ -7,6 +7,7 @@ from api_client import api_get, dataframe_from
 
 st.set_page_config(page_title="Station Explorer", layout="wide")
 st.title("Station Explorer")
+st.caption("Drill into a single monitoring station's time-series and sensor details.")
 
 locations = dataframe_from(api_get("/locations", default=[]))
 

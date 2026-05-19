@@ -48,7 +48,7 @@ services:
       context: ./frontend
     image: air-quality-frontend:dev
     container_name: air-quality-frontend
-    command: streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+    command: streamlit run Home.py --server.address 0.0.0.0 --server.port 8501
     env_file:
       - path: .env
         required: false

@@ -19,6 +19,7 @@ GAP_THRESHOLD_HOURS = 6
 
 st.set_page_config(page_title="Data Operations", layout="wide")
 st.title("Data Operations")
+st.caption("Monitor data completeness, ingestion pipeline health, and identify gaps in coverage.")
 
 locations = load_locations()
 measurements = load_measurements()

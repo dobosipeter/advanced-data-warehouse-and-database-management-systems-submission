@@ -5,6 +5,7 @@ from api_client import api_get, api_patch, api_post, dataframe_from
 
 st.set_page_config(page_title="Threshold Management", layout="wide")
 st.title("Threshold Management")
+st.caption("Create and manage alert threshold rules per city and pollutant.")
 
 thresholds = dataframe_from(api_get("/thresholds", default=[]))
 locations = dataframe_from(api_get("/locations", default=[]))

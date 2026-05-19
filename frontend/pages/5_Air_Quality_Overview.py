@@ -17,6 +17,7 @@ from dashboard_support import (
 
 st.set_page_config(page_title="Air Quality Overview", layout="wide")
 st.title("Air Quality Overview")
+st.caption("Filtered KPIs, trend charts, and station rankings across all monitored locations.")
 
 locations = load_locations()
 measurements = load_measurements()
@@ -95,20 +96,43 @@ metrics[1].metric("Average this week", f"{format_number(this_week['value'].mean(
 metrics[2].metric("Stations in filter", int(filtered_measurements["location_name"].nunique()))
 metrics[3].metric("Open alerts", int((filtered_alerts["status"] == "open").sum()) if "status" in filtered_alerts else 0)
 
+st.divider()
+
 left, right = st.columns([2, 1])
 
 with left:
     st.subheader("Trend chart")
-    chart_data = filtered_measurements.sort_values("measured_at").copy()
+    chart_data = filtered_measurements.copy()
+    chart_data["day"] = chart_data["measured_at"].dt.date
     color_column = "parameter_code" if selected_parameter == ALL_OPTION else "location_name"
-    chart = px.line(
-        chart_data,
-        x="measured_at",
-        y="value",
-        color=color_column,
-        markers=True,
-        labels={"measured_at": "Measured at", "value": "Value"},
-    )
+
+    # Aggregate to daily means to avoid spaghetti when many stations overlap
+    num_series = chart_data[color_column].nunique()
+    if num_series > 5:
+        agg_data = (
+            chart_data.groupby(["day", color_column], as_index=False)["value"]
+            .mean()
+            .rename(columns={"value": "daily_mean"})
+            .sort_values("day")
+        )
+        chart = px.line(
+            agg_data,
+            x="day",
+            y="daily_mean",
+            color=color_column,
+            markers=True,
+            labels={"day": "Date", "daily_mean": "Daily mean"},
+        )
+        st.caption("Showing daily averages (many series detected).")
+    else:
+        chart = px.line(
+            chart_data.sort_values("measured_at"),
+            x="measured_at",
+            y="value",
+            color=color_column,
+            markers=True,
+            labels={"measured_at": "Measured at", "value": "Value"},
+        )
     chart.update_layout(height=380, margin=dict(l=10, r=10, t=20, b=10), legend_title_text="")
     st.plotly_chart(chart, use_container_width=True)
 
@@ -120,6 +144,8 @@ with right:
         worst_station["parameter_code"],
     )
     st.caption(f"{worst_station['city']} · measured {worst_station['measured_at']:%Y-%m-%d %H:%M UTC}")
+
+st.divider()
 
 st.subheader("Latest values by station")
 st.dataframe(

@@ -5,6 +5,7 @@ from api_client import api_get, api_patch, dataframe_from
 
 st.set_page_config(page_title="Alerts", layout="wide")
 st.title("Alerts")
+st.caption("Browse, filter, and review triggered pollution alerts.")
 
 status_filter = st.sidebar.selectbox("Status", ["all", "open", "reviewed", "closed"])
 level_filter = st.sidebar.selectbox("Level", ["all", "moderate", "high", "critical", "low"])

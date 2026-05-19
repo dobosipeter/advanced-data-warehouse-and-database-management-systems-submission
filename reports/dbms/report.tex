@@ -10,6 +10,8 @@
 \usepackage{xcolor}
 \usepackage{listings}
 
+\hypersetup{breaklinks=true}
+
 \lstset{
   basicstyle=\ttfamily\small,
   breaklines=true,
@@ -19,7 +21,7 @@
 
 \title{Air Quality Intelligence System\\[0.3em]
 \large Advanced Database Management Systems --- Course Report}
-\author{Péter Dobosi}
+\author{Péter Dobosi (MW79ON)}
 \date{\today}
 
 \begin{document}
@@ -33,10 +35,10 @@
 \textbf{Field} & \textbf{Value} \\
 \midrule
 Student & Péter Dobosi \\
-Neptun code & DOP3BP \\
+Neptun code & MW79ON \\
 Course & Advanced Database Management Systems \\
 Semester & 2025/26 Spring \\
-Repository & \url{https://github.com/dobosipeter/advanced-data-warehouse-and-database-management-systems-submission} \\
+Repository & \href{https://github.com/dobosipeter/advanced-data-warehouse-and-database-management-systems-submission}{github.com/dobosipeter/advanced-\ldots-submission} \\
 Live system & \url{https://mw79on-demo.online} \\
 API docs & \url{https://api.mw79on-demo.online/docs} \\
 \bottomrule
@@ -52,47 +54,87 @@ and transactions, and exposing it via a FastAPI REST backend and Streamlit GUI.
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{../../diagrams/system_architecture.png}
-\caption{System architecture overview (emphasis on OLTP layer).}
+\caption{System architecture (boxes-and-arrows) with technology labels.}
 \label{fig:architecture}
 \end{figure}
 
-\noindent Key DBMS-oriented components:
+% ============================================================
+\section{Course Technologies Demonstrated}
+
+The following topics from the Advanced DBMS course are actively demonstrated in the project:
+
+\subsection{Loose Coupling --- Triggers + Log Tables (Chapter~2)}
+
 \begin{itemize}[nosep]
-  \item \textbf{PostgreSQL 16} --- OLTP engine with schemas: \texttt{oltp}, \texttt{staging}, \texttt{audit}.
-  \item \textbf{Triggers} --- automatic alert generation on measurement insert; outbox event enqueue on alert state change.
-  \item \textbf{Transactions} --- all ingestion batches run inside explicit transactions with savepoints; failures roll back atomically.
-  \item \textbf{Constraints} --- CHECK, UNIQUE, FOREIGN KEY, and cross-column constraints on every table.
-  \item \textbf{Partitioning} --- \texttt{measurement\_raw} is range-partitioned by \texttt{measured\_at} (monthly).
-  \item \textbf{Indexing} --- B-tree indexes on foreign keys, composite indexes on hot query paths.
-  \item \textbf{Backup} --- scripted \texttt{pg\_dump} with rotation and optional off-site upload.
-  \item \textbf{FastAPI} --- RESTful API with OpenAPI/Swagger auto-docs.
-  \item \textbf{Streamlit} --- Operational GUI for threshold management, alert review, and system monitoring.
+  \item \textbf{Trigger \texttt{trg\_measurement\_generate\_pollution\_alert}} --- fires AFTER INSERT on \texttt{oltp.measurement\_raw}; matches the measurement value against active threshold rules and inserts an alert row into \texttt{oltp.pollution\_alert}.
+  \item \textbf{Trigger \texttt{trg\_pollution\_alert\_enqueue\_event}} --- fires AFTER INSERT OR UPDATE OF status on \texttt{oltp.pollution\_alert}; enqueues a lifecycle event into \texttt{audit.pollution\_alert\_outbox} (the log/outbox table).
+  \item This implements the course-prescribed \emph{loose-coupling pattern}: the measurement insert knows nothing about alerting; the alerting trigger knows nothing about downstream consumers. The outbox table decouples producers from consumers.
+\end{itemize}
+
+\subsection{Transactions \& Error Handling (Chapter~1 review, expanded)}
+
+\begin{itemize}[nosep]
+  \item Ingestion runs inside explicit transactions per location batch.
+  \item Sensor-level \textbf{savepoints} allow partial rollback of invalid sensor data without losing valid data from the same location.
+  \item Run status is tracked as \texttt{succeeded}, \texttt{partial}, or \texttt{failed}.
+  \item Invalid measurements (null value, missing timestamp) are skipped and counted rather than rolling back the entire batch.
+\end{itemize}
+
+\subsection{Partitioning (Chapter~5)}
+
+\begin{itemize}[nosep]
+  \item \texttt{oltp.measurement\_raw} is \textbf{range-partitioned by month} on \texttt{measured\_at}.
+  \item 25+ monthly partitions are created via a PL/pgSQL loop (Jan 2025 -- Feb 2027).
+  \item Queries filtering by time benefit from \textbf{partition pruning}.
+  \item Old partitions can be detached/archived without affecting live operations.
+\end{itemize}
+
+\subsection{Database Administration, Backups, Maintenance (Appendix~B)}
+
+\begin{itemize}[nosep]
+  \item \texttt{scripts/backup.sh}: automated \texttt{pg\_dump --format=custom} with configurable retention (default 7 days) and optional off-site upload.
+  \item Scheduled via cron: \textbf{daily at 02:00 UTC} for full backup.
+  \item VACUUM and ANALYZE are scheduled via \texttt{pg\_cron} or OS-level cron for table maintenance.
+\end{itemize}
+
+\subsection{Indexing (Appendix~A)}
+
+\begin{itemize}[nosep]
+  \item B-tree indexes on all foreign key columns and high-frequency query paths.
+  \item Composite indexes: \texttt{(sensor\_id, measured\_at)} on measurement, \texttt{(parameter\_id, city, warning\_level)} on thresholds.
+  \item Partial index on outbox: \texttt{WHERE processed\_at IS NULL} for efficient unprocessed-event retrieval.
+\end{itemize}
+
+\subsection{Automated Scheduling}
+
+The pipeline is scheduled via system cron on the production VM:
+\begin{itemize}[nosep]
+  \item \textbf{Every 3 hours}: \texttt{run\_pipeline.sh ingest-etl} --- fetch new data from OpenAQ and load into DW.
+  \item \textbf{Daily at 06:00}: \texttt{run\_pipeline.sh predict-only} --- generate next-period predictions.
+  \item \textbf{Weekly Sunday 03:00}: \texttt{run\_pipeline.sh train-predict} --- retrain the ML model and predict.
+  \item \textbf{Daily at 02:00}: \texttt{backup.sh} --- database backup with rotation.
 \end{itemize}
 
 % ============================================================
 \section{Functional Specification}
 
-The operational (DBMS) layer provides the following features:
-
 \begin{enumerate}[nosep]
-  \item \textbf{Data Ingestion} --- Incremental and initial bulk load from OpenAQ v3 API via Python worker.
-  \item \textbf{Threshold Management} --- CRUD for per-city, per-pollutant alert rules with severity levels (low / moderate / high / critical).
-  \item \textbf{Automatic Alert Generation} --- PostgreSQL trigger fires on every new measurement, matches against active threshold rules, and inserts an alert row.
-  \item \textbf{Outbox Pattern} --- A second trigger enqueues alert lifecycle events into an audit outbox table for downstream consumers.
-  \item \textbf{Alert Review Workflow} --- Operators can transition alerts through open → reviewed → closed with notes.
-  \item \textbf{Transaction Safety} --- Ingestion uses explicit transactions; partial failures are rolled back without corrupting existing data.
-  \item \textbf{Partitioning} --- Monthly range partitions on the measurement table enable partition pruning on time-range queries and simplify archival.
-  \item \textbf{Indexing} --- Targeted indexes accelerate JOIN-heavy API queries (measurements by sensor, alerts by status, thresholds by city/parameter).
-  \item \textbf{Backup \& Maintenance} --- Cron-driven \texttt{pg\_dump} with configurable retention and VACUUM/ANALYZE scheduling.
-  \item \textbf{REST API} --- FastAPI backend exposes health, locations, measurements, alerts, thresholds, ingestion runs, and predictions.
-  \item \textbf{Operational GUI} --- Streamlit dashboard with pages for station exploration, threshold editing, alert management, and system status.
-  \item \textbf{CI/CD Deployment} --- GitHub Actions workflow deploys changes to the Hetzner VM automatically on push to \texttt{main}.
+  \item \textbf{Data Ingestion} --- Incremental and initial bulk load from OpenAQ v3 API.
+  \item \textbf{Threshold Management} --- CRUD for per-city, per-pollutant alert rules (GUI + API).
+  \item \textbf{Automatic Alert Generation} --- PostgreSQL trigger on measurement insert.
+  \item \textbf{Outbox/Event Pattern} --- Trigger-based loose-coupling for alert lifecycle events.
+  \item \textbf{Alert Review Workflow} --- GUI for transitioning alerts (open → reviewed → closed).
+  \item \textbf{Transaction Safety} --- Explicit transactions with savepoints and partial-failure handling.
+  \item \textbf{Range Partitioning} --- Monthly partitions on measurement table.
+  \item \textbf{Indexing} --- B-tree, composite, and partial indexes on hot query paths.
+  \item \textbf{Backup \& Maintenance} --- Automated pg\_dump with retention + scheduled VACUUM.
+  \item \textbf{REST API} --- FastAPI with OpenAPI/Swagger auto-documentation.
+  \item \textbf{Operational GUI} --- Streamlit pages: Station Explorer, Threshold Management, Alerts, System Status.
+  \item \textbf{CI/CD} --- GitHub Actions deploys on push to \texttt{main} via SSH.
 \end{enumerate}
 
 % ============================================================
 \section{Logical Data Model (OLTP)}
-
-The OLTP schema (\texttt{oltp}) contains the following tables:
 
 \begin{table}[H]
 \centering
@@ -101,33 +143,29 @@ The OLTP schema (\texttt{oltp}) contains the following tables:
 \toprule
 \textbf{Table} & \textbf{Primary Key} & \textbf{Purpose} \\
 \midrule
-\texttt{ingestion\_run\_log} & \texttt{ingestion\_run\_id} & Track each pipeline run (status, counts, errors) \\
-\texttt{parameter} & \texttt{parameter\_id} & Pollutant definitions (pm25, pm10, no2, o3, \ldots) \\
-\texttt{location} & \texttt{location\_id} & Monitoring stations with coordinates and metadata \\
-\texttt{sensor} & \texttt{sensor\_id} & Physical sensors linking locations to parameters \\
-\texttt{measurement\_raw} & \texttt{(measurement\_id, measured\_at)} & Raw observations (partitioned by month) \\
-\texttt{threshold\_rule} & \texttt{threshold\_rule\_id} & Alert threshold definitions per city/pollutant/level \\
-\texttt{pollution\_alert} & \texttt{pollution\_alert\_id} & Generated alerts referencing measurements \& rules \\
+\texttt{ingestion\_run\_log} & \texttt{ingestion\_run\_id} & Pipeline run tracking \\
+\texttt{parameter} & \texttt{parameter\_id} & Pollutant definitions \\
+\texttt{location} & \texttt{location\_id} & Monitoring stations \\
+\texttt{sensor} & \texttt{sensor\_id} & Physical sensors \\
+\texttt{measurement\_raw} & \texttt{(measurement\_id, measured\_at)} & Observations (partitioned) \\
+\texttt{threshold\_rule} & \texttt{threshold\_rule\_id} & Alert threshold definitions \\
+\texttt{pollution\_alert} & \texttt{pollution\_alert\_id} & Generated alerts \\
 \bottomrule
 \end{tabular}
-\caption{OLTP tables.}
+\caption{OLTP tables in the \texttt{oltp} schema.}
 \end{table}
 
 \noindent Supporting schemas:
 \begin{itemize}[nosep]
-  \item \texttt{staging.raw\_api\_response} --- stores raw JSON API responses for auditability.
-  \item \texttt{audit.pollution\_alert\_outbox} --- event sourcing table for alert lifecycle events.
+  \item \texttt{staging.raw\_api\_response} --- raw JSON responses for auditability.
+  \item \texttt{audit.pollution\_alert\_outbox} --- event sourcing / loose-coupling log table.
 \end{itemize}
 
 \subsection*{Key Relationships}
-
 \begin{itemize}[nosep]
-  \item \texttt{sensor} → \texttt{location} (many-to-one)
-  \item \texttt{sensor} → \texttt{parameter} (many-to-one)
-  \item \texttt{measurement\_raw} → \texttt{sensor} (many-to-one)
-  \item \texttt{measurement\_raw} → \texttt{ingestion\_run\_log} (many-to-one, nullable)
-  \item \texttt{pollution\_alert} → \texttt{measurement\_raw} (composite FK)
-  \item \texttt{pollution\_alert} → \texttt{threshold\_rule} (many-to-one)
+  \item \texttt{sensor} → \texttt{location} (many-to-one), \texttt{sensor} → \texttt{parameter} (many-to-one)
+  \item \texttt{measurement\_raw} → \texttt{sensor} (FK), → \texttt{ingestion\_run\_log} (FK, nullable)
+  \item \texttt{pollution\_alert} → \texttt{measurement\_raw} (composite FK), → \texttt{threshold\_rule} (FK)
 \end{itemize}
 
 % ============================================================
@@ -139,29 +177,17 @@ The OLTP schema (\texttt{oltp}) contains the following tables:
 \toprule
 \textbf{Technology} & \textbf{Role} \\
 \midrule
-PostgreSQL 16 & RDBMS (OLTP + DW + audit schemas) \\
+PostgreSQL 16 & RDBMS --- OLTP + DW + audit schemas \\
+PL/pgSQL & Trigger functions (alert generation, outbox) \\
 Python 3.12 & Worker scripts, API, frontend \\
 FastAPI & REST API with automatic OpenAPI docs \\
 Streamlit & Operational + analytical dashboards \\
-Docker Compose & Container orchestration \\
-Caddy & Reverse proxy with automatic HTTPS \\
-GitHub Actions & CI/CD pipeline (SSH deploy) \\
+Docker Compose & Container orchestration (5 services) \\
+Caddy 2 & Reverse proxy with automatic HTTPS (Let's Encrypt) \\
+GitHub Actions & CI/CD deployment pipeline (SSH + rsync) \\
 Hetzner Cloud & Production VM (Ubuntu 24.04) \\
 \bottomrule
 \end{tabular}
-\caption{Technology stack.}
 \end{table}
-
-\subsection*{Notable PostgreSQL Features Demonstrated}
-
-\begin{itemize}[nosep]
-  \item \textbf{PL/pgSQL triggers} (alert generation, outbox enqueue)
-  \item \textbf{Range partitioning} (monthly measurement partitions)
-  \item \textbf{CHECK constraints} with cross-column validation
-  \item \textbf{Composite primary/foreign keys}
-  \item \textbf{JSONB columns} for flexible raw payload storage
-  \item \textbf{Explicit transactions with savepoints} in ingestion scripts
-  \item \textbf{pg\_dump} for automated backup and recovery
-\end{itemize}
 
 \end{document}

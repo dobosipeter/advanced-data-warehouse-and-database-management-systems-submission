@@ -103,35 +103,41 @@ left, right = st.columns([2, 1])
 with left:
     st.subheader("Trend chart")
     chart_data = filtered_measurements.copy()
-    chart_data["day"] = chart_data["measured_at"].dt.date
     color_column = "parameter_code" if selected_parameter == ALL_OPTION else "location_name"
 
-    # Aggregate to daily means to avoid spaghetti when many stations overlap
+    # Aggregate to hourly means for clean visualization
+    chart_data["hour"] = chart_data["measured_at"].dt.floor("h")
     num_series = chart_data[color_column].nunique()
     if num_series > 5:
         agg_data = (
-            chart_data.groupby(["day", color_column], as_index=False)["value"]
+            chart_data.groupby(["hour", color_column], as_index=False)["value"]
             .mean()
-            .rename(columns={"value": "daily_mean"})
-            .sort_values("day")
+            .rename(columns={"value": "hourly_mean"})
+            .sort_values("hour")
         )
         chart = px.line(
             agg_data,
-            x="day",
-            y="daily_mean",
+            x="hour",
+            y="hourly_mean",
             color=color_column,
             markers=True,
-            labels={"day": "Date", "daily_mean": "Daily mean"},
+            labels={"hour": "Time", "hourly_mean": "Hourly mean"},
         )
-        st.caption("Showing daily averages (many series detected).")
+        st.caption("Showing hourly averages (many series aggregated).")
     else:
+        agg_data = (
+            chart_data.groupby(["hour", color_column], as_index=False)["value"]
+            .mean()
+            .rename(columns={"value": "hourly_mean"})
+            .sort_values("hour")
+        )
         chart = px.line(
-            chart_data.sort_values("measured_at"),
-            x="measured_at",
-            y="value",
+            agg_data,
+            x="hour",
+            y="hourly_mean",
             color=color_column,
             markers=True,
-            labels={"measured_at": "Measured at", "value": "Value"},
+            labels={"hour": "Time", "hourly_mean": "Hourly mean"},
         )
     chart.update_layout(height=380, margin=dict(l=10, r=10, t=20, b=10), legend_title_text="")
     st.plotly_chart(chart, use_container_width=True)

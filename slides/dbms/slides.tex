@@ -9,7 +9,7 @@
 
 \title{Air Quality Intelligence System}
 \subtitle{Advanced Database Management Systems}
-\author{Péter Dobosi (DOP3BP)}
+\author{Péter Dobosi (MW79ON)}
 \institute{University of Pannonia}
 \date{2025/26 Spring}
 
@@ -28,8 +28,8 @@
   \item Need: automated ingestion, threshold-based alerting, and operational oversight
 \end{itemize}
 \vspace{1em}
-\textbf{Goal:} Build a production-ready DBMS-backed monitoring system with triggers,
-transactions, and an operational GUI.
+\textbf{Goal:} Build a production-ready DBMS-backed monitoring system demonstrating:\\
+triggers, transactions, partitioning, indexing, backups, and an operational GUI.
 \note{~1 min --- set the scene, explain why this matters.}
 \end{frame}
 
@@ -37,7 +37,7 @@ transactions, and an operational GUI.
 \begin{frame}{Architecture Overview}
 \begin{figure}
 \centering
-\includegraphics[width=0.85\textwidth]{../../diagrams/system_architecture.png}
+\includegraphics[width=0.72\textwidth]{../../diagrams/system_architecture.png}
 \end{figure}
 \note{~1 min --- walk through the components left-to-right.}
 \end{frame}
@@ -131,17 +131,25 @@ transactions, and an operational GUI.
 
 % ----------------------------------------------------------
 \begin{frame}{Deployment \& DevOps}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
 \begin{itemize}
-  \item Hetzner Cloud VM (Ubuntu 24.04, 2 vCPU, 4 GB RAM)
-  \item Docker Compose: DB + API + Frontend + Caddy
-  \item Caddy handles automatic Let's Encrypt TLS
-  \item GitHub Actions: push to \texttt{main} → rsync → docker compose up
-  \item UFW firewall: only 22, 80, 443 open
+  \item Hetzner Cloud VM (Ubuntu 24.04)
+  \item Docker Compose: 5 services
+  \item Caddy: automatic HTTPS (Let's Encrypt)
+  \item GitHub Actions: push → deploy
+  \item Cron scheduling:
+  \begin{itemize}
+    \item Every 3h: ingest + ETL
+    \item Daily: predictions
+    \item Daily: backup with rotation
+  \end{itemize}
 \end{itemize}
-\begin{figure}
-\centering
-\includegraphics[width=0.6\textwidth]{../../diagrams/deployment_architecture.png}
-\end{figure}
+\end{column}
+\begin{column}{0.45\textwidth}
+\includegraphics[width=\textwidth]{../../diagrams/deployment_architecture.png}
+\end{column}
+\end{columns}
 \note{~1 min --- show workflow run in GitHub, live site.}
 \end{frame}
 

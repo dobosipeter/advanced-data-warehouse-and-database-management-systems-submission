@@ -8,8 +8,8 @@
 \usepackage{hyperref}
 
 \title{Air Quality Intelligence System}
-\subtitle{Advanced Data Warehouse}
-\author{Péter Dobosi (DOP3BP)}
+\subtitle{Advanced Data Warehouse Technologies}
+\author{Péter Dobosi (MW79ON)}
 \institute{University of Pannonia}
 \date{2025/26 Spring}
 
@@ -37,17 +37,19 @@ prediction to interactive analytical dashboards.
 \begin{frame}{Architecture \& Data Flow}
 \begin{figure}
 \centering
-\includegraphics[width=0.85\textwidth]{../../diagrams/data_flow.png}
+\includegraphics[width=0.72\textwidth]{../../diagrams/data_flow.png}
 \end{figure}
 \note{~1 min --- trace the flow: OpenAQ → staging → OLTP → ETL → DW → dashboard.}
 \end{frame}
 
 % ----------------------------------------------------------
-\begin{frame}{Star Schema Design}
+\begin{frame}{Star Schema Design (Fact Constellation)}
 \begin{figure}
 \centering
-\includegraphics[width=0.78\textwidth]{../../diagrams/dw_star_schema.png}
+\includegraphics[width=0.68\textwidth]{../../diagrams/dw_star_schema.png}
 \end{figure}
+\vspace{-0.5em}
+\small Three fact tables sharing conformed dimensions (galaxy schema pattern).
 \note{~1.5 min --- explain facts vs dimensions, grain of each fact table.}
 \end{frame}
 
@@ -99,7 +101,7 @@ prediction to interactive analytical dashboards.
   \item Random Forest model trained on DW historical data
   \item Features: hour, weekday, month, recent averages, location
   \item Chart: actual vs.\ predicted PM2.5 concentration
-  \item Metrics: MAE ≈ 0.91, RMSE ≈ 1.21, R² ≈ 0.73
+  \item Metrics: MAE \(\approx\) 0.91, RMSE \(\approx\) 1.21, R² \(\approx\) 0.73
   \item Predictions stored as \texttt{fact\_prediction} in the DW
 \end{itemize}
 \vspace{0.5em}

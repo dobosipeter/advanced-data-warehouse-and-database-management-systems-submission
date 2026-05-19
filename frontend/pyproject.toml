@@ -15,4 +15,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["app", "api_client"]
+py-modules = ["app", "api_client", "dashboard_support"]

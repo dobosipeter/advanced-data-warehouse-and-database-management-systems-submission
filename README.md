@@ -28,7 +28,7 @@ The project ingests air quality measurements from the OpenAQ API, stores operati
    - API docs: http://localhost:8001/docs
    - Reverse proxy: http://localhost:8080
 
-The repository already includes the local stack, schema initialization, and OpenAQ ingestion worker. The API, ETL, prediction, and dashboard layers are still being expanded.
+The repository now includes the local stack, schema initialization, ingestion worker, FastAPI backend, PM2.5 training/prediction pipeline, and both operational and analytical Streamlit pages.
 
 ## Pipeline Operations
 
@@ -50,7 +50,7 @@ Run the end-to-end scheduled pipeline entrypoint:
 ./scripts/run_pipeline.sh
 ```
 
-The API now exposes the first operational endpoints from PostgreSQL:
+The API now exposes the operational and analytical endpoints from PostgreSQL:
 
 - `GET /health`
 - `GET /locations`
@@ -61,10 +61,13 @@ The API now exposes the first operational endpoints from PostgreSQL:
 - `POST /thresholds`
 - `PATCH /thresholds/{threshold_rule_id}`
 - `GET /ingestion-runs`
-- `GET /predictions`
+- `GET /predictions` (supports city/location/parameter/date filters and returns predicted risk plus matched actual/error when available)
 - `POST /demo/refresh` (token-protected, optional command wiring)
 
-The Streamlit frontend consumes the API through `API_BASE_URL` and includes pages for operational overview, station exploration, threshold management, alert review, and system status.
+The Streamlit frontend consumes the API through `API_BASE_URL` and includes:
+
+- operational pages for overview, station exploration, threshold management, alert review, and system status
+- analytical pages for air quality overview, high-risk periods, prediction insights, and data operations
 
 `oltp.measurement_raw` is monthly range-partitioned on `measured_at` and indexed for time-series access. The indexing rationale and verification query are documented in `docs/03-indexing-and-partitioning.md`.
 
@@ -79,6 +82,18 @@ docker compose run --rm worker python etl.py
 ```
 
 The ETL applies SCD2 versioning to location and sensor dimensions: changed source metadata expires the previous current row and inserts a new current surrogate-key version.
+
+Train the PM2.5 model manually with:
+
+```bash
+docker compose run --rm worker python train_model.py
+```
+
+Generate the latest PM2.5 predictions manually with:
+
+```bash
+docker compose run --rm worker python predict.py
+```
 
 The incremental ingestion uses the latest successful `oltp.ingestion_run_log.finished_at` value as its lower bound, falling back to `started_at` for legacy/incomplete log rows, and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements.
 

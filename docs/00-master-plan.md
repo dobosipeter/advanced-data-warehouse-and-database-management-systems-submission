@@ -73,9 +73,9 @@ This document is the high-level control plane for the Air Quality Intelligence S
 - [x] Star schema design & DW tables (Issue #65)
 - [x] ETL pipeline staging → DW (Issue #66)
 - [x] SCD2 implementation (Issue #67)
-- [ ] Risk classification (Issue #68)
-- [ ] PM2.5 prediction model (Issue #69)
-- [ ] Dashboard (Issue #70)
+- [x] Risk classification (Issue #68)
+- [x] PM2.5 prediction model (Issue #69)
+- [x] Dashboard (Issue #70)
 - [ ] Automated DW refresh (Issue #71)
 
 ### Phase 3: Deployment (Depends on Phase 2A + 2B)

@@ -131,6 +131,9 @@ class PredictionResponse(APIModel):
     location_name: str
     parameter_code: str
     created_at: datetime
+    risk_class_label: str | None = None
+    actual_value: float | None = None
+    absolute_error: float | None = None
 
 
 class DemoRefreshResponse(APIModel):
@@ -556,8 +559,11 @@ def list_ingestion_runs(
 @app.get("/predictions", response_model=list[PredictionResponse])
 def list_predictions(
     conn: DBConnection,
+    city: str | None = Query(default=None),
     location: str | None = Query(default=None),
     parameter: str | None = Query(default=None),
+    date_from: datetime | None = Query(default=None),
+    date_to: datetime | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> list[PredictionResponse]:
     rows = fetch_all(
@@ -572,18 +578,43 @@ def list_predictions(
             dl.city,
             dl.name AS location_name,
             dp.code AS parameter_code,
-            fp.prediction_created_at AS created_at
+            fp.prediction_created_at AS created_at,
+            rc.label AS risk_class_label,
+            fam.measurement_value::double precision AS actual_value,
+            ABS(fp.predicted_value - fam.measurement_value)::double precision AS absolute_error
         FROM dw.fact_prediction AS fp
         JOIN dw.dim_location AS dl
             ON dl.location_key = fp.location_key
         JOIN dw.dim_parameter AS dp
             ON dp.parameter_key = fp.parameter_key
-        WHERE (%s::text IS NULL OR dl.city = %s OR dl.name = %s)
+        LEFT JOIN dw.dim_risk_class AS rc
+            ON rc.risk_class_key = fp.risk_class_key
+        LEFT JOIN dw.fact_air_quality_measurement AS fam
+            ON fam.location_key = fp.location_key
+           AND fam.parameter_key = fp.parameter_key
+           AND fam.measured_at = fp.target_measured_at
+           AND (fp.sensor_key IS NULL OR fam.sensor_key = fp.sensor_key)
+        WHERE (%s::text IS NULL OR dl.city = %s)
+          AND (%s::text IS NULL OR dl.name = %s)
           AND (%s::text IS NULL OR dp.code = %s)
+          AND (%s::timestamptz IS NULL OR fp.target_measured_at >= %s)
+          AND (%s::timestamptz IS NULL OR fp.target_measured_at <= %s)
         ORDER BY fp.target_measured_at DESC, fp.prediction_created_at DESC
         LIMIT %s
         """,
-        (location, location, location, parameter, parameter, limit),
+        (
+            city,
+            city,
+            location,
+            location,
+            parameter,
+            parameter,
+            date_from,
+            date_from,
+            date_to,
+            date_to,
+            limit,
+        ),
     )
     return [PredictionResponse(**row) for row in rows]
 

@@ -123,6 +123,9 @@ class FakeCursor:
                     "location_name": "Budapest Downtown",
                     "parameter_code": "pm25",
                     "created_at": datetime(2026, 5, 19, 0, 30, tzinfo=timezone.utc),
+                    "risk_class_label": "Moderate",
+                    "actual_value": 14.9,
+                    "absolute_error": 0.8,
                 }
             ]
         if "FROM oltp.threshold_rule AS tr" in self.last_query:
@@ -202,10 +205,12 @@ class APITestCase(unittest.TestCase):
         self.assertEqual(response.json()[0]["alert_level"], "moderate")
 
     def test_predictions_return_rows(self) -> None:
-        response = self.client.get("/predictions", params={"location": "Budapest"})
+        response = self.client.get("/predictions", params={"city": "Budapest", "location": "Budapest Downtown"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["model_name"], "random-forest")
+        self.assertEqual(response.json()[0]["risk_class_label"], "Moderate")
+        self.assertEqual(response.json()[0]["absolute_error"], 0.8)
 
     def test_thresholds_return_rows(self) -> None:
         response = self.client.get("/thresholds", params={"city": "Budapest"})

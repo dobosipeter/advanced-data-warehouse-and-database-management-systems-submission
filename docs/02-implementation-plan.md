@@ -395,7 +395,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #70 |
-| Status | Blocked (needs WI-15) |
+| Status | Done |
 | Dependencies | WI-15, WI-18 (partial — can start without predictions) |
 | Inputs | DW tables populated, FastAPI serving data |
 | Outputs | Multi-page analytical dashboard |
@@ -409,6 +409,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - Filters: city, station, pollutant, date range
 - KPI cards at top of overview
 - Can be Streamlit pages or separate Power BI/Looker Studio (Streamlit primary)
+- Implemented as Streamlit pages `5_Air_Quality_Overview.py`, `6_High_Risk_Periods.py`, `7_Prediction_Insights.py`, and `8_Data_Operations.py`
 
 ---
 

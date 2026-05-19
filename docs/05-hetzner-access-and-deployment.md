@@ -95,4 +95,42 @@ After the base OS bootstrap:
 4. Bring up the stack with Docker Compose.
 5. Run the first historical load and ETL/prediction jobs.
 
-The repository still needs production deployment configuration work for the reverse proxy and host port exposure before the final public rollout. This document should be updated again once that production configuration is committed.
+## Current Deployment Progress
+
+The following steps have already been completed on the Hetzner VM:
+
+1. VM provisioned and reachable through the Azure-VM SSH hop fallback.
+2. Docker Engine and Docker Compose installed.
+3. Repository cloned to `/opt/air-quality-intelligence`.
+4. `.env` created from `.env.example` and populated with the OpenAQ API key.
+5. Namecheap DNS `A` records configured for:
+   - `mw79on-demo.online` → Hetzner IPv4
+   - `api.mw79on-demo.online` → Hetzner IPv4
+6. `docker compose up -d --build` completed successfully.
+7. Caddy obtained valid Let's Encrypt certificates for both public hostnames.
+
+Current container exposure is expected to be:
+
+- Caddy publicly on `80/443`
+- PostgreSQL on `127.0.0.1:5432`
+- FastAPI on `127.0.0.1:8001`
+- Streamlit on `127.0.0.1:8501`
+
+## Next Runtime Steps
+
+Run the initial data and analytics pipeline on the VM:
+
+```bash
+cd /opt/air-quality-intelligence
+docker compose --profile tools run --rm worker python ingest.py --initial --history-days 30
+docker compose --profile tools run --rm worker python etl.py
+docker compose --profile tools run --rm worker python train_model.py
+docker compose --profile tools run --rm worker python predict.py
+```
+
+After those complete, verify the public endpoints:
+
+```bash
+curl -I https://mw79on-demo.online
+curl -I https://api.mw79on-demo.online/docs
+```

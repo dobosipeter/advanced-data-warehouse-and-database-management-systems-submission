@@ -439,7 +439,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #55 |
-| Status | Blocked (needs Phase 2 substantially complete) |
+| Status | Doing |
 | Dependencies | WI-03 (Docker Compose working locally) |
 | Inputs | Deployment docs from context registry, working docker-compose |
 | Outputs | System running at mw79on-demo.online |
@@ -454,6 +454,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - `docker compose up -d --build`
 - Run initial data load
 - Verify public access + HTTPS
+- Progress so far: Hetzner VM provisioned, Azure-hop SSH access documented, DNS set at Namecheap, Compose stack running, HTTPS certificates issued by Caddy
 
 ---
 

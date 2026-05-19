@@ -60,6 +60,33 @@ class ETLRepository:
                     FROM oltp.location
                     WHERE is_active
                 )
+                UPDATE dw.dim_location AS current_dim
+                SET valid_to = now(),
+                    is_current = false
+                FROM source_rows AS src
+                WHERE current_dim.source_location_id = src.location_id
+                  AND current_dim.is_current
+                  AND current_dim.row_hash <> src.row_hash
+                """
+            )
+            expired = cur.rowcount
+
+            cur.execute(
+                """
+                WITH source_rows AS (
+                    SELECT
+                        location_id,
+                        openaq_location_id,
+                        name,
+                        city,
+                        country,
+                        latitude,
+                        longitude,
+                        first_seen_at,
+                        md5(concat_ws('|', openaq_location_id, name, city, country, latitude, longitude)) AS row_hash
+                    FROM oltp.location
+                    WHERE is_active
+                )
                 INSERT INTO dw.dim_location (
                     source_location_id,
                     openaq_location_id,
@@ -74,32 +101,62 @@ class ETLRepository:
                     row_hash
                 )
                 SELECT
-                    location_id,
-                    openaq_location_id,
-                    name,
-                    city,
-                    country,
-                    latitude,
-                    longitude,
-                    COALESCE(first_seen_at, now()),
+                    src.location_id,
+                    src.openaq_location_id,
+                    src.name,
+                    src.city,
+                    src.country,
+                    src.latitude,
+                    src.longitude,
+                    CASE
+                        WHEN existing_any.source_location_id IS NULL THEN COALESCE(src.first_seen_at, now())
+                        ELSE now()
+                    END,
                     NULL,
                     true,
-                    row_hash
-                FROM source_rows
-                ON CONFLICT (source_location_id) WHERE is_current DO UPDATE
-                SET openaq_location_id = EXCLUDED.openaq_location_id,
-                    name = EXCLUDED.name,
-                    city = EXCLUDED.city,
-                    country = EXCLUDED.country,
-                    latitude = EXCLUDED.latitude,
-                    longitude = EXCLUDED.longitude,
-                    row_hash = EXCLUDED.row_hash
+                    src.row_hash
+                FROM source_rows AS src
+                LEFT JOIN dw.dim_location AS current_dim
+                    ON current_dim.source_location_id = src.location_id
+                   AND current_dim.is_current
+                LEFT JOIN (
+                    SELECT DISTINCT source_location_id
+                    FROM dw.dim_location
+                ) AS existing_any
+                    ON existing_any.source_location_id = src.location_id
+                WHERE current_dim.location_key IS NULL
                 """
             )
-            return cur.rowcount
+            inserted = cur.rowcount
+            return expired + inserted
 
     def sync_sensors(self) -> int:
         with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH source_rows AS (
+                    SELECT
+                        sensor_id,
+                        openaq_sensor_id,
+                        location_id,
+                        parameter_id,
+                        unit,
+                        first_seen_at,
+                        md5(concat_ws('|', openaq_sensor_id, location_id, parameter_id, unit)) AS row_hash
+                    FROM oltp.sensor
+                    WHERE is_active
+                )
+                UPDATE dw.dim_sensor AS current_dim
+                SET valid_to = now(),
+                    is_current = false
+                FROM source_rows AS src
+                WHERE current_dim.source_sensor_id = src.sensor_id
+                  AND current_dim.is_current
+                  AND current_dim.row_hash <> src.row_hash
+                """
+            )
+            expired = cur.rowcount
+
             cur.execute(
                 """
                 WITH source_rows AS (
@@ -126,25 +183,32 @@ class ETLRepository:
                     row_hash
                 )
                 SELECT
-                    sensor_id,
-                    openaq_sensor_id,
-                    location_id,
-                    parameter_id,
-                    unit,
-                    COALESCE(first_seen_at, now()),
+                    src.sensor_id,
+                    src.openaq_sensor_id,
+                    src.location_id,
+                    src.parameter_id,
+                    src.unit,
+                    CASE
+                        WHEN existing_any.source_sensor_id IS NULL THEN COALESCE(src.first_seen_at, now())
+                        ELSE now()
+                    END,
                     NULL,
                     true,
-                    row_hash
-                FROM source_rows
-                ON CONFLICT (source_sensor_id) WHERE is_current DO UPDATE
-                SET openaq_sensor_id = EXCLUDED.openaq_sensor_id,
-                    source_location_id = EXCLUDED.source_location_id,
-                    source_parameter_id = EXCLUDED.source_parameter_id,
-                    unit = EXCLUDED.unit,
-                    row_hash = EXCLUDED.row_hash
+                    src.row_hash
+                FROM source_rows AS src
+                LEFT JOIN dw.dim_sensor AS current_dim
+                    ON current_dim.source_sensor_id = src.sensor_id
+                   AND current_dim.is_current
+                LEFT JOIN (
+                    SELECT DISTINCT source_sensor_id
+                    FROM dw.dim_sensor
+                ) AS existing_any
+                    ON existing_any.source_sensor_id = src.sensor_id
+                WHERE current_dim.sensor_key IS NULL
                 """
             )
-            return cur.rowcount
+            inserted = cur.rowcount
+            return expired + inserted
 
     def load_measurement_facts(self) -> int:
         with self.conn.cursor() as cur:

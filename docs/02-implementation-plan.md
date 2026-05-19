@@ -330,7 +330,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #67 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-15 |
 | Inputs | DimLocation with valid_from/valid_to/is_current fields |
 | Outputs | SCD2 logic in ETL |

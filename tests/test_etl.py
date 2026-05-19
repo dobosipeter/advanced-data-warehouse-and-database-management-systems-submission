@@ -33,6 +33,13 @@ class ETLConfigTests(unittest.TestCase):
 
         self.assertEqual(result.measurements, 4)
 
+    def test_etl_worker_contains_scd2_expiration_logic(self) -> None:
+        etl_source = Path("workers/etl.py").read_text()
+
+        self.assertIn("valid_to = now()", etl_source)
+        self.assertIn("is_current = false", etl_source)
+        self.assertIn("row_hash <>", etl_source)
+
 
 if __name__ == "__main__":
     unittest.main()

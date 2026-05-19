@@ -1,0 +1,9 @@
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+AIR_QUALITY_REPO=/path/to/advanced-data-warehouse-and-database-management-systems-submission
+
+# Create a compressed PostgreSQL backup every day at 02:15 UTC and keep 7 days.
+15 2 * * * cd "${AIR_QUALITY_REPO}" && RETENTION_DAYS=7 ./scripts/backup_db.sh backup >> /tmp/air-quality-backup.log 2>&1
+
+# Refresh table statistics weekly after the backup window.
+45 2 * * 0 cd "${AIR_QUALITY_REPO}" && ./scripts/backup_db.sh maintenance >> /tmp/air-quality-maintenance.log 2>&1

@@ -67,7 +67,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 - [x] FastAPI backend (Issue #61)
 - [x] Streamlit operational GUI (Issue #62)
 - [x] Columnstore/indexing & partitioning (Issue #63)
-- [ ] Backup & maintenance jobs (Issue #64)
+- [x] Backup & maintenance jobs (Issue #64)
 
 ### Phase 2B: Data Warehouse Layer (Depends on Phase 1)
 - [ ] Star schema design & DW tables (Issue #65)

@@ -266,7 +266,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #64 |
-| Status | Blocked (needs WI-02) |
+| Status | Done |
 | Dependencies | WI-02 |
 | Inputs | Running PostgreSQL container |
 | Outputs | `scripts/backup_db.sh`, documented maintenance plan |

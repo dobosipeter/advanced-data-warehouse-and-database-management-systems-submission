@@ -70,6 +70,8 @@ The Streamlit frontend consumes the API through `API_BASE_URL` and includes page
 
 Database backup and maintenance operations are handled by `scripts/backup_db.sh`. The script creates compressed PostgreSQL custom-format dumps, prunes old backups, can restore-check the latest dump, and runs maintenance commands. Details are documented in `docs/04-backup-and-maintenance.md`.
 
+The data warehouse star schema is defined in `database/init/003_create_dw_tables.sql`; its ER diagram is available as Mermaid source in `diagrams/dw_star_schema.mmd`.
+
 The incremental ingestion uses the latest successful `oltp.ingestion_run_log.finished_at` value as its lower bound, falling back to `started_at` for legacy/incomplete log rows, and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements.
 
 New PM2.5 measurements now also drive the operational alert workflow: the ingestion worker ensures default city threshold rules exist for PM2.5, a PostgreSQL trigger creates `oltp.pollution_alert` rows with status `open` for moderate/high/critical readings, and an `audit.pollution_alert_outbox` table records alert events for downstream jobs.

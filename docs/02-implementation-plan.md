@@ -287,7 +287,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #65 |
-| Status | Blocked (needs WI-02) |
+| Status | Done |
 | Dependencies | WI-02 |
 | Inputs | DW schema from context registry §5 |
 | Outputs | Refined DDL, ER diagram |
@@ -307,7 +307,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #66 |
-| Status | Blocked (needs WI-04, WI-14) |
+| Status | Ready |
 | Dependencies | WI-04, WI-14 |
 | Inputs | Populated staging/OLTP tables, empty DW tables |
 | Outputs | `workers/etl.py` |

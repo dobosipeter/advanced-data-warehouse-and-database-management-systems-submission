@@ -1,0 +1,123 @@
+erDiagram
+    DIM_DATE ||--o{ FACT_AIR_QUALITY_MEASUREMENT : measured_date
+    DIM_TIME ||--o{ FACT_AIR_QUALITY_MEASUREMENT : measured_time
+    DIM_LOCATION ||--o{ FACT_AIR_QUALITY_MEASUREMENT : station
+    DIM_SENSOR ||--o{ FACT_AIR_QUALITY_MEASUREMENT : sensor
+    DIM_PARAMETER ||--o{ FACT_AIR_QUALITY_MEASUREMENT : pollutant
+    DIM_RISK_CLASS ||--o{ FACT_AIR_QUALITY_MEASUREMENT : risk
+
+    DIM_DATE ||--o{ FACT_POLLUTION_ALERT : alert_date
+    DIM_TIME ||--o{ FACT_POLLUTION_ALERT : alert_time
+    DIM_LOCATION ||--o{ FACT_POLLUTION_ALERT : station
+    DIM_PARAMETER ||--o{ FACT_POLLUTION_ALERT : pollutant
+    DIM_RISK_CLASS ||--o{ FACT_POLLUTION_ALERT : risk
+
+    DIM_DATE ||--o{ FACT_PREDICTION : target_date
+    DIM_TIME ||--o{ FACT_PREDICTION : target_time
+    DIM_LOCATION ||--o{ FACT_PREDICTION : station
+    DIM_SENSOR ||--o{ FACT_PREDICTION : sensor
+    DIM_PARAMETER ||--o{ FACT_PREDICTION : pollutant
+
+    DIM_DATE {
+        int date_key PK
+        date full_date
+        smallint year
+        smallint quarter
+        smallint month
+        smallint day
+        text day_name
+        smallint weekday
+        boolean is_weekend
+    }
+
+    DIM_TIME {
+        int time_key PK
+        smallint hour
+        smallint minute
+        text part_of_day
+    }
+
+    DIM_LOCATION {
+        bigint location_key PK
+        bigint source_location_id
+        bigint openaq_location_id
+        text name
+        text city
+        text country
+        timestamptz valid_from
+        timestamptz valid_to
+        boolean is_current
+        text row_hash
+    }
+
+    DIM_SENSOR {
+        bigint sensor_key PK
+        bigint source_sensor_id
+        bigint openaq_sensor_id
+        bigint source_location_id
+        bigint source_parameter_id
+        text unit
+        timestamptz valid_from
+        timestamptz valid_to
+        boolean is_current
+        text row_hash
+    }
+
+    DIM_PARAMETER {
+        bigint parameter_key PK
+        bigint source_parameter_id
+        text code
+        text display_name
+        text unit
+        boolean is_active
+    }
+
+    DIM_RISK_CLASS {
+        smallint risk_class_key PK
+        text code
+        text label
+        numeric min_value
+        numeric max_value
+        smallint sort_order
+    }
+
+    FACT_AIR_QUALITY_MEASUREMENT {
+        bigint fact_measurement_id PK
+        bigint source_measurement_id
+        bigint location_key FK
+        bigint sensor_key FK
+        bigint parameter_key FK
+        int date_key FK
+        int time_key FK
+        smallint risk_class_key FK
+        timestamptz measured_at
+        numeric measurement_value
+        text unit
+    }
+
+    FACT_POLLUTION_ALERT {
+        bigint fact_alert_id PK
+        bigint source_alert_id
+        bigint location_key FK
+        bigint parameter_key FK
+        smallint risk_class_key FK
+        int date_key FK
+        int time_key FK
+        text alert_level
+        text alert_status
+        numeric measurement_value
+        timestamptz generated_at
+    }
+
+    FACT_PREDICTION {
+        bigint fact_prediction_id PK
+        bigint location_key FK
+        bigint sensor_key FK
+        bigint parameter_key FK
+        int target_date_key FK
+        int target_time_key FK
+        timestamptz target_measured_at
+        numeric predicted_value
+        text model_name
+        text model_version
+    }

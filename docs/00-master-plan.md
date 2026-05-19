@@ -70,7 +70,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 - [x] Backup & maintenance jobs (Issue #64)
 
 ### Phase 2B: Data Warehouse Layer (Depends on Phase 1)
-- [ ] Star schema design & DW tables (Issue #65)
+- [x] Star schema design & DW tables (Issue #65)
 - [ ] ETL pipeline staging → DW (Issue #66)
 - [ ] SCD2 implementation (Issue #67)
 - [ ] Risk classification (Issue #68)

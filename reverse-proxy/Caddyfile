@@ -1,3 +1,11 @@
+{$APP_DOMAIN} {
+	reverse_proxy frontend:8501
+}
+
+{$API_DOMAIN} {
+	reverse_proxy api:8000
+}
+
 :80 {
 	handle_path /api/* {
 		reverse_proxy api:8000

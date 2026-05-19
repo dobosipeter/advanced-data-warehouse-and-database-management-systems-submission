@@ -117,3 +117,12 @@ crontab scripts/air_quality_pipeline.crontab
 ```
 
 Deployment and server-access notes for the current Hetzner VM flow are tracked in `docs/05-hetzner-access-and-deployment.md`.
+
+For public deployment behind Caddy, set the reverse proxy ports in `.env` to:
+
+```bash
+PROXY_PORT=80
+PROXY_TLS_PORT=443
+```
+
+The database, API, and frontend ports are bound to `127.0.0.1` by default so they stay host-local while Caddy is the only public entrypoint.

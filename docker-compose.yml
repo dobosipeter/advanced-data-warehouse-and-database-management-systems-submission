@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-air_quality}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d:ro
@@ -31,7 +31,7 @@ services:
       NO_PROXY: localhost,127.0.0.1,db,api,frontend,reverse-proxy
       no_proxy: localhost,127.0.0.1,db,api,frontend,reverse-proxy
     ports:
-      - "${API_PORT:-8001}:8000"
+      - "${API_BIND_IP:-127.0.0.1}:${API_PORT:-8001}:8000"
     volumes:
       - ./api:/app
     depends_on:
@@ -57,7 +57,7 @@ services:
       NO_PROXY: localhost,127.0.0.1,db,api,frontend,reverse-proxy
       no_proxy: localhost,127.0.0.1,db,api,frontend,reverse-proxy
     ports:
-      - "${FRONTEND_PORT:-8501}:8501"
+      - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_PORT:-8501}:8501"
     volumes:
       - ./frontend:/app
     depends_on:
@@ -93,13 +93,19 @@ services:
   reverse-proxy:
     image: caddy:2
     container_name: air-quality-proxy
+    env_file:
+      - path: .env
+        required: false
     environment:
       NO_PROXY: localhost,127.0.0.1,db,api,frontend,reverse-proxy
       no_proxy: localhost,127.0.0.1,db,api,frontend,reverse-proxy
     ports:
       - "${PROXY_PORT:-8080}:80"
+      - "${PROXY_TLS_PORT:-8443}:443"
     volumes:
       - ./reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       api:
         condition: service_healthy
@@ -108,3 +114,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

@@ -462,7 +462,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #56 |
-| Status | Blocked (needs WI-21) |
+| Status | Doing |
 | Dependencies | WI-21 |
 | Inputs | Working deployment, SSH access |
 | Outputs | `.github/workflows/deploy.yml` |
@@ -473,6 +473,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - Configure GitHub secrets (SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, etc.)
 - Workflow: checkout → optional tests → SSH deploy → health check
 - Manual trigger option (workflow_dispatch)
+- Implementation in progress: workflow now syncs the repo to the Hetzner VM over SSH and runs `scripts/deploy_stack.sh`; remaining manual step is adding the GitHub secrets and running the first Actions deployment
 
 ---
 

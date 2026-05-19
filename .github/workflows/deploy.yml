@@ -1,0 +1,76 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      APP_URL: ${{ secrets.APP_URL }}
+      API_URL: ${{ secrets.API_URL }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate deployment scripts
+        run: |
+          bash -n scripts/run_pipeline.sh
+          bash -n scripts/backup_db.sh
+          bash -n scripts/deploy_stack.sh
+          python3 -m unittest tests/test_run_pipeline.py
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config > /tmp/docker-compose.rendered.yml
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add deploy host to known_hosts
+        run: |
+          SSH_PORT="${SSH_PORT:-22}"
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${SSH_PORT}" -H "${SSH_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Ensure remote deploy path exists
+        run: |
+          SSH_PORT="${SSH_PORT:-22}"
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "mkdir -p '${DEPLOY_PATH}'"
+
+      - name: Sync repository to server
+        run: |
+          SSH_PORT="${SSH_PORT:-22}"
+          rsync -az --delete \
+            --exclude ".git/" \
+            --exclude ".github/" \
+            --exclude ".env" \
+            --exclude "__pycache__/" \
+            --exclude ".pytest_cache/" \
+            --exclude ".mypy_cache/" \
+            --exclude "workers/model_artifacts/" \
+            --exclude "backups/postgres/" \
+            -e "ssh -p ${SSH_PORT}" \
+            ./ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
+
+      - name: Deploy stack on server
+        run: |
+          SSH_PORT="${SSH_PORT:-22}"
+          ssh -p "${SSH_PORT}" \
+            "${SSH_USER}@${SSH_HOST}" \
+            "cd '${DEPLOY_PATH}' && APP_URL='${APP_URL}' API_URL='${API_URL}' bash scripts/deploy_stack.sh"

@@ -126,3 +126,5 @@ PROXY_TLS_PORT=443
 ```
 
 The database, API, and frontend ports are bound to `127.0.0.1` by default so they stay host-local while Caddy is the only public entrypoint.
+
+GitHub Actions deployment is defined in `.github/workflows/deploy.yml`. It syncs the repository to the Hetzner VM over SSH, runs `scripts/deploy_stack.sh`, and verifies the public dashboard and API URLs after each deployment.

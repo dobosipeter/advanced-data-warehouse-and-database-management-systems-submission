@@ -148,3 +148,43 @@ The public endpoints have been verified externally and currently return HTTP `20
 
 - `https://mw79on-demo.online`
 - `https://api.mw79on-demo.online/docs`
+
+## GitHub Actions Deployment Setup
+
+The repository now includes a deployment workflow at `.github/workflows/deploy.yml`. It:
+
+1. checks out the repository,
+2. validates the deployment scripts and Compose file,
+3. connects to the Hetzner VM over SSH,
+4. syncs the repository contents to `/opt/air-quality-intelligence`,
+5. runs `scripts/deploy_stack.sh`, and
+6. verifies the public dashboard and API URLs.
+
+### Required GitHub repository secrets
+
+Add these secrets before enabling the workflow:
+
+| Secret | Value |
+|---|---|
+| `SSH_HOST` | Hetzner IPv4 address |
+| `SSH_PORT` | `22` |
+| `SSH_USER` | `root` (or the deployment user if changed later) |
+| `SSH_PRIVATE_KEY` | Dedicated private deploy key for GitHub Actions |
+| `DEPLOY_PATH` | `/opt/air-quality-intelligence` |
+| `APP_URL` | `https://mw79on-demo.online` |
+| `API_URL` | `https://api.mw79on-demo.online/docs` |
+
+### Recommended deploy-key setup
+
+Prefer a dedicated deployment key instead of reusing the day-to-day personal SSH key:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/air_quality_github_actions -C "github-actions-deploy"
+cat ~/.ssh/air_quality_github_actions.pub
+cat ~/.ssh/air_quality_github_actions
+```
+
+- Add the **public** key to `/root/.ssh/authorized_keys` on the Hetzner VM.
+- Add the **private** key content to the GitHub repository secret `SSH_PRIVATE_KEY`.
+
+After the secrets are configured, the workflow can be triggered either by pushing to `main` or manually from the Actions tab.

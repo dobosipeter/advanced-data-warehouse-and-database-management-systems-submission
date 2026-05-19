@@ -224,6 +224,16 @@ backups/
 *.dump
 *.sql.gz
 
-# Generated reports and slides
-reports/**/*.pdf
-slides/**/*.pdf
+# LaTeX auxiliary files
+reports/**/*.aux
+reports/**/*.log
+reports/**/*.out
+reports/**/*.toc
+reports/**/*.synctex.gz
+slides/**/*.aux
+slides/**/*.log
+slides/**/*.out
+slides/**/*.nav
+slides/**/*.snm
+slides/**/*.toc
+slides/**/*.synctex.gz

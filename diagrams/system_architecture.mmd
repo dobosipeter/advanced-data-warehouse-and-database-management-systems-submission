@@ -1,0 +1,43 @@
+flowchart LR
+    openaq["OpenAQ API v3<br/>Measurements, locations, sensors"] --> ingest["Python ingestion worker<br/>workers/ingest.py"]
+
+    subgraph postgres["PostgreSQL 16"]
+        staging["staging schema<br/>raw JSONB payloads"]
+        oltp["oltp schema<br/>normalized operational tables<br/>measurements, thresholds, alerts, run logs"]
+        audit["audit schema<br/>pollution_alert_outbox"]
+        dw["dw schema<br/>star schema facts + dimensions"]
+        ml["ml artifacts/metadata<br/>model outputs consumed by workers"]
+    end
+
+    ingest --> staging
+    ingest --> oltp
+    oltp --> triggers["DB triggers + functions<br/>alert generation, loose coupling"]
+    triggers --> audit
+
+    etl["Python ETL worker<br/>workers/etl.py"] --> dw
+    oltp --> etl
+    staging --> etl
+
+    train["Model training worker<br/>workers/train_model.py"] --> dw
+    train --> artifact["PM2.5 model artifact<br/>joblib"]
+    artifact --> predict["Prediction worker<br/>workers/predict.py"]
+    dw --> predict
+    predict --> dw
+
+    api["FastAPI backend<br/>api/main.py<br/>REST + Swagger"] --> dw
+    api --> oltp
+    ui["Streamlit frontend<br/>operational + analytical pages"] --> api
+
+    caddy["Caddy reverse proxy<br/>HTTPS termination"] --> ui
+    caddy --> api
+    github["GitHub Actions deploy workflow"] --> caddy
+
+    classDef ext fill:#eef6ff,stroke:#4472c4,stroke-width:1px,color:#0b1f33;
+    classDef db fill:#f6f8fb,stroke:#5b6470,stroke-width:1px,color:#111827;
+    classDef app fill:#edfdf4,stroke:#1d8348,stroke-width:1px,color:#0b2e13;
+    classDef ops fill:#fff7e6,stroke:#c97a00,stroke-width:1px,color:#4a2d00;
+
+    class openaq,github ext;
+    class staging,oltp,audit,dw,ml db;
+    class ingest,etl,train,predict,api,ui,artifact,triggers app;
+    class caddy ops;

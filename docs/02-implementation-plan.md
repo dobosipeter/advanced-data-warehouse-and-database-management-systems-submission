@@ -462,7 +462,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #56 |
-| Status | Doing |
+| Status | Done |
 | Dependencies | WI-21 |
 | Inputs | Working deployment, SSH access |
 | Outputs | `.github/workflows/deploy.yml` |
@@ -473,7 +473,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - Configure GitHub secrets (SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, etc.)
 - Workflow: checkout → optional tests → SSH deploy → health check
 - Manual trigger option (workflow_dispatch)
-- Implementation in progress: workflow now syncs the repo to the Hetzner VM over SSH and runs `scripts/deploy_stack.sh`; remaining manual step is adding the GitHub secrets and running the first Actions deployment
+- Completed: GitHub Actions deploy workflow is configured, repository secrets are set, and the workflow passes against the live Hetzner deployment
 
 ---
 
@@ -483,7 +483,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #76 |
-| Status | Ready (can start anytime) |
+| Status | Done |
 | Dependencies | None (refine as system develops) |
 | Inputs | Architecture from context registry, deployment docs |
 | Outputs | `diagrams/` — architecture diagram in PDF/PNG |
@@ -493,8 +493,9 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - Main system architecture (3-layer diagram with tech labels)
 - Data flow diagram (OpenAQ → staging → OLTP → DW → dashboard)
 - Star schema ER diagram
-- Deployment architecture (Docker, Caddy, Cloudflare, Oracle Cloud)
+- Deployment architecture (Docker, Caddy, Namecheap DNS, Hetzner Cloud, GitHub Actions)
 - Tool: draw.io, PlantUML, Mermaid, or TikZ
+- Implemented as Mermaid sources in `diagrams/system_architecture.mmd`, `diagrams/data_flow.mmd`, `diagrams/dw_star_schema.mmd`, and `diagrams/deployment_architecture.mmd`
 
 ---
 

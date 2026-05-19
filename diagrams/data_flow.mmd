@@ -1,0 +1,35 @@
+flowchart TD
+    source["OpenAQ API"] --> extract["Extract<br/>workers/ingest.py"]
+    extract --> raw["staging.api_payload_log<br/>raw JSONB payload capture"]
+    extract --> operational["oltp.location / sensor / measurement_raw<br/>incremental operational load"]
+
+    operational --> thresholds["oltp.threshold_rule<br/>PM2.5 thresholds"]
+    thresholds --> alerts["oltp.pollution_alert<br/>trigger-generated operational alerts"]
+    alerts --> outbox["audit.pollution_alert_outbox<br/>event log"]
+
+    operational --> etl["Transform + load<br/>workers/etl.py"]
+    raw --> etl
+    etl --> dimensions["dw dimensions<br/>date, time, location, sensor,<br/>parameter, risk_class"]
+    etl --> facts["dw facts<br/>air_quality_measurement,<br/>pollution_alert, prediction"]
+
+    facts --> classify["Risk classification<br/>dw.dim_risk_class join"]
+    facts --> train["Model training<br/>workers/train_model.py"]
+    train --> model["PM2.5 model artifact"]
+    model --> predict["Prediction scoring<br/>workers/predict.py"]
+    predict --> prediction_fact["dw.fact_prediction"]
+
+    operational --> api["FastAPI API"]
+    facts --> api
+    prediction_fact --> api
+    api --> dashboard["Streamlit dashboard + operational GUI"]
+    api --> swagger["Swagger docs"]
+
+    classDef ext fill:#eef6ff,stroke:#4472c4,stroke-width:1px,color:#0b1f33;
+    classDef stage fill:#fff7e6,stroke:#c97a00,stroke-width:1px,color:#4a2d00;
+    classDef db fill:#f6f8fb,stroke:#5b6470,stroke-width:1px,color:#111827;
+    classDef app fill:#edfdf4,stroke:#1d8348,stroke-width:1px,color:#0b2e13;
+
+    class source,dashboard,swagger ext;
+    class extract,etl,train,predict,api,model app;
+    class raw stage;
+    class operational,thresholds,alerts,outbox,dimensions,facts,classify,prediction_fact db;

@@ -84,6 +84,8 @@ Database backup and maintenance operations are handled by `scripts/backup_db.sh`
 
 The data warehouse star schema is defined in `database/init/003_create_dw_tables.sql`; its ER diagram is available as Mermaid source in `diagrams/dw_star_schema.mmd`.
 
+Additional Mermaid sources for the system architecture, deployment architecture, and end-to-end data flow are tracked under `diagrams/` for report and presentation reuse.
+
 Run the OLTP-to-DW ETL manually with:
 
 ```bash

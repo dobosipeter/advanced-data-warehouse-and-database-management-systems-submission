@@ -80,10 +80,10 @@ This document is the high-level control plane for the Air Quality Intelligence S
 
 ### Phase 3: Deployment (Depends on Phase 2A + 2B)
 - [x] Cloud deployment — Hetzner Cloud VM (Issue #55)
-- [ ] CI/CD pipeline — GitHub Actions (Issue #56)
+- [x] CI/CD pipeline — GitHub Actions (Issue #56)
 
 ### Phase 4: Documentation & Presentation (Can start in parallel with Phase 2)
-- [ ] Architecture diagrams (Issue #76) — start early, refine as system develops
+- [x] Architecture diagrams (Issue #76)
 - [ ] DBMS course PDF (Issue #72)
 - [ ] DW course PDF (Issue #73)
 - [ ] DBMS presentation slides & demo script (Issue #74)

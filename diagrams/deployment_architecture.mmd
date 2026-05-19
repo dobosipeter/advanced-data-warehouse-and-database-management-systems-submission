@@ -1,0 +1,35 @@
+flowchart LR
+    user["Browser / reviewer"] --> dns["Namecheap DNS<br/>mw79on-demo.online<br/>api.mw79on-demo.online"]
+    dns --> vm["Hetzner Cloud VM<br/>Ubuntu 24.04"]
+
+    subgraph host["Single-host Docker Compose deployment"]
+        caddy["Caddy<br/>public 80/443"]
+        frontend["Streamlit frontend<br/>127.0.0.1:8501"]
+        api["FastAPI backend<br/>127.0.0.1:8001"]
+        db["PostgreSQL 16<br/>127.0.0.1:5432<br/>persistent volume"]
+        worker["Worker containers<br/>ingest / etl / train / predict"]
+    end
+
+    vm --> caddy
+    caddy --> frontend
+    caddy --> api
+    api --> db
+    worker --> db
+
+    gha["GitHub Actions<br/>Deploy workflow"] --> ssh["SSH deploy key<br/>repo secrets"]
+    ssh --> vm
+
+    admin["Operator access"] --> azure["Azure VM hop host<br/>fallback SSH path"]
+    azure --> vm
+
+    backup["scripts/backup_db.sh<br/>daily logical backups"] --> db
+
+    classDef ext fill:#eef6ff,stroke:#4472c4,stroke-width:1px,color:#0b1f33;
+    classDef hostc fill:#f6f8fb,stroke:#5b6470,stroke-width:1px,color:#111827;
+    classDef app fill:#edfdf4,stroke:#1d8348,stroke-width:1px,color:#0b2e13;
+    classDef ops fill:#fff7e6,stroke:#c97a00,stroke-width:1px,color:#4a2d00;
+
+    class user,dns,gha,admin ext;
+    class vm,host hostc;
+    class caddy,frontend,api,db,worker app;
+    class ssh,azure,backup ops;

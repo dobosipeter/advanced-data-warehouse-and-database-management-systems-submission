@@ -59,7 +59,7 @@ The API now exposes the first operational endpoints from PostgreSQL:
 - `GET /predictions`
 - `POST /demo/refresh` (token-protected, optional command wiring)
 
-The incremental ingestion uses the latest successful `oltp.ingestion_run_log.started_at` value as its lower bound and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements.
+The incremental ingestion uses the latest successful `oltp.ingestion_run_log.finished_at` value as its lower bound, falling back to `started_at` for legacy/incomplete log rows, and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements.
 
 New PM2.5 measurements now also drive the operational alert workflow: the ingestion worker ensures default city threshold rules exist for PM2.5, a PostgreSQL trigger creates `oltp.pollution_alert` rows with status `open` for moderate/high/critical readings, and an `audit.pollution_alert_outbox` table records alert events for downstream jobs.
 

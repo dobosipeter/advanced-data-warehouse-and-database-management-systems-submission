@@ -227,10 +227,10 @@ def list_measurements(
             ON l.location_id = s.location_id
         JOIN oltp.parameter AS p
             ON p.parameter_id = s.parameter_id
-        WHERE (%s IS NULL OR l.city = %s)
-          AND (%s IS NULL OR p.code = %s)
-          AND (%s IS NULL OR m.measured_at >= %s)
-          AND (%s IS NULL OR m.measured_at <= %s)
+        WHERE (%s::text IS NULL OR l.city = %s)
+          AND (%s::text IS NULL OR p.code = %s)
+          AND (%s::timestamptz IS NULL OR m.measured_at >= %s)
+          AND (%s::timestamptz IS NULL OR m.measured_at <= %s)
         ORDER BY m.measured_at DESC
         LIMIT %s
         """,
@@ -275,8 +275,8 @@ def list_alerts(
             ON l.location_id = s.location_id
         JOIN oltp.parameter AS p
             ON p.parameter_id = s.parameter_id
-        WHERE (%s IS NULL OR a.status = %s)
-          AND (%s IS NULL OR l.city = %s)
+        WHERE (%s::text IS NULL OR a.status = %s)
+          AND (%s::text IS NULL OR l.city = %s)
         ORDER BY a.generated_at DESC
         LIMIT %s
         """,
@@ -310,8 +310,8 @@ def list_predictions(
             ON dl.location_key = fp.location_key
         JOIN dw.dim_parameter AS dp
             ON dp.parameter_key = fp.parameter_key
-        WHERE (%s IS NULL OR dl.city = %s OR dl.name = %s)
-          AND (%s IS NULL OR dp.code = %s)
+        WHERE (%s::text IS NULL OR dl.city = %s OR dl.name = %s)
+          AND (%s::text IS NULL OR dp.code = %s)
         ORDER BY fp.target_measured_at DESC, fp.prediction_created_at DESC
         LIMIT %s
         """,

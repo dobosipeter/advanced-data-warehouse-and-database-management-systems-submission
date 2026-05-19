@@ -182,11 +182,11 @@ class IngestionRepository:
                 (status, inserted, failed, error, run_id),
             )
 
-    def last_successful_run_start(self) -> datetime | None:
+    def last_successful_watermark(self) -> datetime | None:
         with self.conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT max(started_at)
+                SELECT max(COALESCE(finished_at, started_at))
                 FROM oltp.ingestion_run_log
                 WHERE status = 'succeeded'
                 """
@@ -402,7 +402,7 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
         try:
             now = datetime.now(UTC)
             if mode == "incremental":
-                datetime_from = repo.last_successful_run_start() or now - timedelta(days=1)
+                datetime_from = repo.last_successful_watermark() or now - timedelta(days=1)
             else:
                 datetime_from = now - timedelta(days=config.history_days)
 

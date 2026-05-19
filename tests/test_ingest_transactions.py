@@ -114,7 +114,7 @@ class FakeRepository:
     def finish_run(self, run_id: int, status: str, inserted: int, failed: int, error: str | None = None) -> None:
         self.finished_runs.append((status, inserted, failed, error))
 
-    def last_successful_run_start(self):
+    def last_successful_watermark(self):
         return None
 
     def store_raw_response(self, run_id: int, endpoint: str, request_url: str, params: dict, payload: dict) -> None:

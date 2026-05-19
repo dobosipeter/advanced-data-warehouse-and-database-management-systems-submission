@@ -40,6 +40,12 @@ class ETLConfigTests(unittest.TestCase):
         self.assertIn("is_current = false", etl_source)
         self.assertIn("row_hash <>", etl_source)
 
+    def test_etl_worker_assigns_risk_class_keys(self) -> None:
+        etl_source = Path("workers/etl.py").read_text()
+
+        self.assertIn("risk_class_key", etl_source)
+        self.assertIn("dw.dim_risk_class", etl_source)
+
 
 if __name__ == "__main__":
     unittest.main()

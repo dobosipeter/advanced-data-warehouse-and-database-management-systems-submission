@@ -3,6 +3,8 @@ DECLARE
     source_measurements INTEGER;
     fact_measurements INTEGER;
     missing_dimension_count INTEGER;
+    missing_risk_class_count INTEGER;
+    inconsistent_risk_class_count INTEGER;
 BEGIN
     SELECT count(*) INTO source_measurements FROM oltp.measurement_raw;
     SELECT count(*) INTO fact_measurements FROM dw.fact_air_quality_measurement;
@@ -36,5 +38,26 @@ BEGIN
         HAVING count(*) > 1
     ) THEN
         RAISE EXCEPTION 'Expected measurement fact load to be idempotent';
+    END IF;
+
+    SELECT count(*)
+    INTO missing_risk_class_count
+    FROM dw.fact_air_quality_measurement
+    WHERE risk_class_key IS NULL;
+
+    IF missing_risk_class_count <> 0 THEN
+        RAISE EXCEPTION 'Expected every measurement fact to have a risk classification: %', missing_risk_class_count;
+    END IF;
+
+    SELECT count(*)
+    INTO inconsistent_risk_class_count
+    FROM dw.fact_air_quality_measurement AS f
+    JOIN dw.dim_risk_class AS rc
+        ON rc.risk_class_key = f.risk_class_key
+    WHERE f.measurement_value < rc.min_value
+       OR (rc.max_value IS NOT NULL AND f.measurement_value >= rc.max_value);
+
+    IF inconsistent_risk_class_count <> 0 THEN
+        RAISE EXCEPTION 'Found measurement facts outside their assigned risk class ranges: %', inconsistent_risk_class_count;
     END IF;
 END $$;

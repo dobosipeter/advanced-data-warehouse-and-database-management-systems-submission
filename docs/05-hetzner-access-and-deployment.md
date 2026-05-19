@@ -134,3 +134,17 @@ After those complete, verify the public endpoints:
 curl -I https://mw79on-demo.online
 curl -I https://api.mw79on-demo.online/docs
 ```
+
+## Current Verified State
+
+The first production data load has completed successfully:
+
+- Initial ingestion inserted `4039` measurements with `0` failures
+- DW ETL loaded `4039` measurements and `46` alerts
+- PM2.5 training completed with random forest selected as best model
+- Prediction run inserted `4` prediction rows
+
+The public endpoints have been verified externally and currently return HTTP `200`:
+
+- `https://mw79on-demo.online`
+- `https://api.mw79on-demo.online/docs`

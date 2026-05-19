@@ -439,7 +439,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #55 |
-| Status | Doing |
+| Status | Done |
 | Dependencies | WI-03 (Docker Compose working locally) |
 | Inputs | Deployment docs from context registry, working docker-compose |
 | Outputs | System running at mw79on-demo.online |
@@ -454,7 +454,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 - `docker compose up -d --build`
 - Run initial data load
 - Verify public access + HTTPS
-- Progress so far: Hetzner VM provisioned, Azure-hop SSH access documented, DNS set at Namecheap, Compose stack running, HTTPS certificates issued by Caddy
+- Completed on Hetzner Cloud: VM provisioned, Azure-hop SSH access documented, DNS set at Namecheap, Compose stack running, HTTPS certificates issued by Caddy, initial ingest/ETL/train/predict run completed, and both public URLs now return HTTP 200
 
 ---
 

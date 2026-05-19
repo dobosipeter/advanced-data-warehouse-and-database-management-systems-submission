@@ -79,7 +79,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 - [x] Automated DW refresh (Issue #71)
 
 ### Phase 3: Deployment (Depends on Phase 2A + 2B)
-- [ ] Cloud deployment — Oracle Cloud VM (Issue #55)
+- [x] Cloud deployment — Hetzner Cloud VM (Issue #55)
 - [ ] CI/CD pipeline — GitHub Actions (Issue #56)
 
 ### Phase 4: Documentation & Presentation (Can start in parallel with Phase 2)

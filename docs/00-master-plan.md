@@ -71,7 +71,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 
 ### Phase 2B: Data Warehouse Layer (Depends on Phase 1)
 - [x] Star schema design & DW tables (Issue #65)
-- [ ] ETL pipeline staging → DW (Issue #66)
+- [x] ETL pipeline staging → DW (Issue #66)
 - [ ] SCD2 implementation (Issue #67)
 - [ ] Risk classification (Issue #68)
 - [ ] PM2.5 prediction model (Issue #69)

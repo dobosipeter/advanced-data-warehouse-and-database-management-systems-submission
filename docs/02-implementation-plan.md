@@ -307,7 +307,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #66 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-04, WI-14 |
 | Inputs | Populated staging/OLTP tables, empty DW tables |
 | Outputs | `workers/etl.py` |
@@ -330,7 +330,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #67 |
-| Status | Blocked (needs WI-15) |
+| Status | Ready |
 | Dependencies | WI-15 |
 | Inputs | DimLocation with valid_from/valid_to/is_current fields |
 | Outputs | SCD2 logic in ETL |
@@ -350,7 +350,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #68 |
-| Status | Blocked (needs WI-15) |
+| Status | Ready |
 | Dependencies | WI-15 |
 | Inputs | Measurement data in DW |
 | Outputs | Classification logic, populated risk_class_key in facts |
@@ -369,7 +369,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #69 |
-| Status | Blocked (needs WI-15) |
+| Status | Ready |
 | Dependencies | WI-15 |
 | Inputs | Historical measurements in DW |
 | Outputs | `workers/train_model.py`, `workers/predict.py`, model artifact |

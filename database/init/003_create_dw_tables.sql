@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS dw.fact_prediction (
     target_measured_at TIMESTAMPTZ NOT NULL,
     prediction_created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     predicted_value NUMERIC(12, 4) NOT NULL,
+    risk_class_key SMALLINT REFERENCES dw.dim_risk_class(risk_class_key),
     model_name TEXT NOT NULL,
     model_version TEXT NOT NULL,
     feature_payload JSONB

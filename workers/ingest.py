@@ -18,6 +18,7 @@ from psycopg.types.json import Jsonb
 DEFAULT_BUDAPEST_BBOX = "18.9250,47.3494,19.3340,47.6130"
 DEFAULT_PARAMETERS = "pm25,pm10,no2,o3"
 MAX_ERROR_MESSAGE_LENGTH = 4000
+MEASUREMENT_PAGE_LIMIT = 250
 DEFAULT_PM25_THRESHOLD_RULES = (
     ("low", Decimal("0")),
     ("moderate", Decimal("10")),
@@ -112,14 +113,21 @@ class OpenAQClient:
 
         raise IngestionError(f"OpenAQ request failed for {endpoint}: {last_error}") from last_error
 
-    def iter_pages(self, endpoint: str, params: dict[str, Any]) -> Iterable[tuple[dict[str, Any], dict[str, Any]]]:
+    def iter_pages(
+        self,
+        endpoint: str,
+        params: dict[str, Any],
+        *,
+        page_limit: int | None = None,
+    ) -> Iterable[tuple[dict[str, Any], dict[str, Any]]]:
+        effective_page_limit = page_limit or self.config.page_limit
         for page in range(1, self.config.max_pages + 1):
-            page_params = {"limit": self.config.page_limit, "page": page, **params}
+            page_params = {"limit": effective_page_limit, "page": page, **params}
             payload = self.get_page(endpoint, page_params)
             yield page_params, payload
 
             results = payload.get("results") or []
-            if len(results) < self.config.page_limit:
+            if len(results) < effective_page_limit:
                 break
 
     def locations(self) -> Iterable[tuple[dict[str, Any], dict[str, Any]]]:
@@ -143,7 +151,11 @@ class OpenAQClient:
             "datetime_from": datetime_from.isoformat().replace("+00:00", "Z"),
             "datetime_to": datetime_to.isoformat().replace("+00:00", "Z"),
         }
-        yield from self.iter_pages(f"/sensors/{openaq_sensor_id}/measurements", params)
+        yield from self.iter_pages(
+            f"/sensors/{openaq_sensor_id}/measurements",
+            params,
+            page_limit=min(self.config.page_limit, MEASUREMENT_PAGE_LIMIT),
+        )
 
 
 def parameter_id_for_code(code: str) -> str:
@@ -379,6 +391,16 @@ def sensor_matches_scope(sensor: dict[str, Any], parameters: tuple[str, ...]) ->
     return (parameter.get("name") or "").lower() in {item.lower() for item in parameters}
 
 
+def summarize_measurement_error(sensor_id: int, measurement: dict[str, Any], exc: Exception) -> str:
+    measured_at = measurement_time(measurement) or "unknown"
+    parameter_name = (measurement.get("parameter") or {}).get("name") or "unknown"
+    value = measurement.get("value")
+    return (
+        f"sensor {sensor_id} measurement skipped at {measured_at} "
+        f"for parameter {parameter_name} with value {value}: {exc}"
+    )
+
+
 def summarize_errors(errors: list[str]) -> str | None:
     if not errors:
         return None
@@ -472,8 +494,20 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
                                                 measurement_params,
                                                 measurement_payload,
                                             )
-                                            for measurement in measurement_payload.get("results") or []:
-                                                measurement_id = repo.insert_measurement(sensor_id, run_id, measurement)
+                                        for measurement in measurement_payload.get("results") or []:
+                                                try:
+                                                    measurement_id = repo.insert_measurement(
+                                                        sensor_id,
+                                                        run_id,
+                                                        measurement,
+                                                    )
+                                                except IngestionError as exc:
+                                                    failed += 1
+                                                    error_messages.append(
+                                                        summarize_measurement_error(sensor["id"], measurement, exc)
+                                                    )
+                                                    continue
+
                                                 if measurement_id is not None:
                                                     inserted += 1
                                 except Exception as exc:

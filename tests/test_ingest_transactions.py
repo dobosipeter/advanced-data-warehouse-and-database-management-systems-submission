@@ -130,8 +130,10 @@ class FakeRepository:
         return None
 
     def insert_measurement(self, sensor_id: int, run_id: int, measurement: dict) -> int | None:
+        if measurement.get("value") is None:
+            raise IngestionError("Measurement payload missing datetime/value")
         if sensor_id == 2:
-            raise IngestionError("bad sensor batch")
+            raise RuntimeError("bad sensor batch")
         return 1000 + sensor_id
 
 
@@ -168,6 +170,61 @@ class RunIngestionTransactionTests(unittest.TestCase):
         repo = FakeRepository.instances[0]
         self.assertEqual(repo.finished_runs[-1][0], "partial")
         self.assertIn("sensor 2 at location 1 rolled back", repo.finished_runs[-1][3] or "")
+
+    def test_run_ingestion_skips_invalid_measurements_without_rolling_back_sensor(self) -> None:
+        class InvalidMeasurementClient(FakeOpenAQClient):
+            def locations(self):
+                yield (
+                    {"page": 1},
+                    {
+                        "results": [
+                            {
+                                "id": 1,
+                                "name": "Station 1",
+                                "city": "Budapest",
+                                "country": {"code": "HU"},
+                                "coordinates": {"latitude": 47.5, "longitude": 19.0},
+                                "timezone": "Europe/Budapest",
+                                "sensors": [
+                                    {"id": 1, "parameter": {"name": "pm25", "units": "ug/m3"}},
+                                ],
+                            }
+                        ]
+                    },
+                )
+
+            def measurements(self, openaq_sensor_id: int, datetime_from, datetime_to):
+                yield (
+                    {"page": 1},
+                    {
+                        "results": [
+                            {
+                                "value": None,
+                                "unit": "ug/m3",
+                                "datetime": {"utc": "2026-05-19T00:00:00Z"},
+                                "parameter": {"name": "pm25", "units": "ug/m3"},
+                            },
+                            {
+                                "value": 18,
+                                "unit": "ug/m3",
+                                "datetime": {"utc": "2026-05-19T01:00:00Z"},
+                                "parameter": {"name": "pm25", "units": "ug/m3"},
+                            },
+                        ]
+                    },
+                )
+
+        with (
+            patch("ingest.psycopg.connect", return_value=FakeConnection()),
+            patch("ingest.OpenAQClient", InvalidMeasurementClient),
+            patch("ingest.IngestionRepository", FakeRepository),
+        ):
+            inserted, failed = run_ingestion(self.config, "initial")
+
+        self.assertEqual((inserted, failed), (1, 1))
+        repo = FakeRepository.instances[0]
+        self.assertEqual(repo.finished_runs[-1][0], "partial")
+        self.assertIn("measurement skipped", repo.finished_runs[-1][3] or "")
 
     def test_run_ingestion_marks_failed_for_run_level_error(self) -> None:
         with (

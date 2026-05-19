@@ -203,7 +203,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #61 |
-| Status | Blocked (needs WI-02) |
+| Status | Done |
 | Dependencies | WI-02 |
 | Inputs | Database schema, required endpoints |
 | Outputs | `api/main.py` with all routes, working Swagger UI |

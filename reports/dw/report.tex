@@ -1,0 +1,162 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\title{Air Quality Intelligence System\\[0.3em]
+\large Advanced Data Warehouse --- Course Report}
+\author{Péter Dobosi}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\section{Team Information}
+
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Student & Péter Dobosi \\
+Neptun code & DOP3BP \\
+Course & Advanced Data Warehouse \\
+Semester & 2025/26 Spring \\
+Repository & \url{https://github.com/dobosipeter/advanced-data-warehouse-and-database-management-systems-submission} \\
+Live system & \url{https://mw79on-demo.online} \\
+API docs & \url{https://api.mw79on-demo.online/docs} \\
+\bottomrule
+\end{tabular}
+
+% ============================================================
+\section{System Architecture}
+
+The system implements an end-to-end data warehouse pipeline: ingesting real-time air quality
+data from OpenAQ, staging it in raw JSON form, loading it into a normalized OLTP schema,
+then transforming it into an analytical star schema in the \texttt{dw} schema.
+A machine learning model provides PM2.5 predictions stored back into the warehouse.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../diagrams/data_flow.png}
+\caption{End-to-end data flow: ingestion → staging → OLTP → ETL → Data Warehouse → analytics.}
+\label{fig:dataflow}
+\end{figure}
+
+\noindent Key data warehouse components:
+\begin{itemize}[nosep]
+  \item \textbf{Staging layer} (\texttt{staging} schema) --- raw JSON API responses preserved for auditability.
+  \item \textbf{OLTP layer} (\texttt{oltp} schema) --- normalized operational tables with triggers and constraints.
+  \item \textbf{Data Warehouse} (\texttt{dw} schema) --- star schema with facts and dimensions.
+  \item \textbf{ETL pipeline} --- Python script performing incremental extraction, SCD Type~2 dimension updates, and fact loading.
+  \item \textbf{ML prediction} --- Random Forest model trained on warehouse data, predictions stored as \texttt{fact\_prediction}.
+  \item \textbf{Analytical dashboard} --- Streamlit multi-page application with filters, trend charts, heatmaps, and prediction comparisons.
+\end{itemize}
+
+% ============================================================
+\section{Functional Specification}
+
+\begin{enumerate}[nosep]
+  \item \textbf{Data Ingestion} --- Incremental and bulk ingest from OpenAQ v3, with run logging and error tracking.
+  \item \textbf{ETL Pipeline} --- Extracts from OLTP, applies SCD Type~2 logic to location and sensor dimensions, loads facts.
+  \item \textbf{Star Schema} --- Three fact tables (measurements, alerts, predictions) with six dimension tables.
+  \item \textbf{SCD Type~2} --- Location and sensor dimensions track history with \texttt{valid\_from/valid\_to/is\_current} versioning.
+  \item \textbf{Risk Classification} --- PM2.5 values classified into Low / Moderate / High / Critical via \texttt{dim\_risk\_class}.
+  \item \textbf{PM2.5 Prediction} --- Random Forest model trained on historical DW data; predictions stored in \texttt{fact\_prediction}.
+  \item \textbf{Automated Refresh} --- Orchestration script with modes (full, ingest-etl, predict-only, train-predict) and cron scheduling.
+  \item \textbf{Analytical Dashboard} --- Four Streamlit pages: Air Quality Overview, High-Risk Periods, Prediction Insights, Data Operations.
+  \item \textbf{Threshold Alerts} --- Configurable alert rules; alerts generated automatically and integrated into the DW as \texttt{fact\_pollution\_alert}.
+  \item \textbf{Deployment} --- Docker Compose on Hetzner Cloud VM with Caddy HTTPS, CI/CD via GitHub Actions.
+\end{enumerate}
+
+% ============================================================
+\section{Logical Data Model (Star Schema)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../diagrams/dw_star_schema.png}
+\caption{Data warehouse star schema.}
+\label{fig:star}
+\end{figure}
+
+\subsection*{Fact Tables}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Table} & \textbf{Grain} & \textbf{Measures} \\
+\midrule
+\texttt{fact\_air\_quality\_measurement} & One reading per sensor per timestamp & \texttt{measurement\_value}, unit \\
+\texttt{fact\_pollution\_alert} & One alert event & \texttt{measurement\_value}, level, status \\
+\texttt{fact\_prediction} & One prediction per location/time & \texttt{predicted\_value}, model info \\
+\bottomrule
+\end{tabular}
+\caption{Fact tables.}
+\end{table}
+
+\subsection*{Dimension Tables}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llp{6.5cm}@{}}
+\toprule
+\textbf{Table} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{dim\_date} & Conformed, pre-populated & Calendar attributes (year, quarter, month, weekday, is\_weekend) \\
+\texttt{dim\_time} & Conformed, pre-populated & Hour/minute with part-of-day classification \\
+\texttt{dim\_parameter} & Type~1 & Pollutant definitions (pm25, pm10, no2, o3) \\
+\texttt{dim\_location} & SCD Type~2 & Monitoring stations with validity range \\
+\texttt{dim\_sensor} & SCD Type~2 & Sensors with validity range \\
+\texttt{dim\_risk\_class} & Reference & PM2.5 concentration bands \\
+\bottomrule
+\end{tabular}
+\caption{Dimension tables.}
+\end{table}
+
+% ============================================================
+\section{Technologies Used}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Technology} & \textbf{Role} \\
+\midrule
+PostgreSQL 16 & OLTP + Data Warehouse (single instance, schema separation) \\
+Python 3.12 & ETL scripts, ML training, prediction, ingestion \\
+scikit-learn & Random Forest model for PM2.5 prediction \\
+pandas & Data transformation and feature engineering \\
+Streamlit & Analytical multi-page dashboard \\
+Plotly & Interactive charts (line, bar, heatmap) \\
+FastAPI & REST API serving DW data to the frontend \\
+Docker Compose & Service orchestration \\
+Caddy & HTTPS reverse proxy \\
+GitHub Actions & CI/CD deployment pipeline \\
+Hetzner Cloud & Production VM (Ubuntu 24.04) \\
+\bottomrule
+\end{tabular}
+\caption{Technology stack.}
+\end{table}
+
+\subsection*{Notable Data Warehouse Features Demonstrated}
+
+\begin{itemize}[nosep]
+  \item \textbf{Star schema} with conformed date/time dimensions
+  \item \textbf{SCD Type~2} with hash-based change detection for location and sensor dimensions
+  \item \textbf{Incremental ETL} with watermark-based extraction (only new OLTP rows loaded)
+  \item \textbf{Risk classification dimension} linking measurements to severity bands
+  \item \textbf{ML integration} --- predictions stored as facts alongside actuals for comparison
+  \item \textbf{Analytical dashboard} with daily aggregation, heatmaps, and error analysis
+  \item \textbf{Automated pipeline orchestration} with scheduled cron jobs
+\end{itemize}
+
+\end{document}

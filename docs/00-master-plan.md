@@ -65,7 +65,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 - [x] Triggers & loose coupling (Issue #59)
 - [x] Transactions & error handling (Issue #60)
 - [x] FastAPI backend (Issue #61)
-- [ ] Streamlit operational GUI (Issue #62)
+- [x] Streamlit operational GUI (Issue #62)
 - [ ] Columnstore/indexing & partitioning (Issue #63)
 - [ ] Backup & maintenance jobs (Issue #64)
 

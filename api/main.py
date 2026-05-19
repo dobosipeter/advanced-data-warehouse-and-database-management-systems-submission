@@ -85,6 +85,42 @@ class AlertResponse(APIModel):
     notes: str | None
 
 
+class AlertUpdateRequest(APIModel):
+    status: str
+    notes: str | None = None
+
+
+class ThresholdRuleResponse(APIModel):
+    threshold_rule_id: int
+    parameter_id: int
+    parameter_code: str
+    parameter_name: str
+    city: str
+    warning_level: str
+    min_value: float
+    is_active: bool
+    updated_at: datetime
+
+
+class ThresholdRuleRequest(APIModel):
+    parameter_code: str
+    city: str
+    warning_level: str
+    min_value: float
+    is_active: bool = True
+
+
+class IngestionRunResponse(APIModel):
+    ingestion_run_id: int
+    run_type: str
+    status: str
+    started_at: datetime
+    finished_at: datetime | None
+    records_inserted: int
+    records_failed: int
+    error_message: str | None
+
+
 class PredictionResponse(APIModel):
     fact_prediction_id: int
     target_measured_at: datetime
@@ -149,6 +185,20 @@ def fetch_one(
         row = cur.fetchone()
         if row is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found.")
+        return row
+
+
+def execute_one(
+    conn: psycopg.Connection[Any],
+    query: str,
+    params: tuple[Any, ...] = (),
+) -> dict[str, Any]:
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found.")
+        conn.commit()
         return row
 
 
@@ -243,6 +293,7 @@ def list_measurements(
 def list_alerts(
     conn: DBConnection,
     status_filter: str | None = Query(default=None, alias="status"),
+    level: str | None = Query(default=None),
     city: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> list[AlertResponse]:
@@ -276,13 +327,230 @@ def list_alerts(
         JOIN oltp.parameter AS p
             ON p.parameter_id = s.parameter_id
         WHERE (%s::text IS NULL OR a.status = %s)
+          AND (%s::text IS NULL OR a.alert_level = %s)
           AND (%s::text IS NULL OR l.city = %s)
         ORDER BY a.generated_at DESC
         LIMIT %s
         """,
-        (status_filter, status_filter, city, city, limit),
+        (status_filter, status_filter, level, level, city, city, limit),
     )
     return [AlertResponse(**row) for row in rows]
+
+
+@app.patch("/alerts/{pollution_alert_id}", response_model=AlertResponse)
+def update_alert(
+    pollution_alert_id: int,
+    payload: AlertUpdateRequest,
+    conn: DBConnection,
+) -> AlertResponse:
+    if payload.status not in {"open", "reviewed", "closed"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid alert status.")
+
+    row = execute_one(
+        conn,
+        """
+        WITH updated AS (
+            UPDATE oltp.pollution_alert
+            SET status = %s,
+                notes = COALESCE(%s, notes),
+                reviewed_at = CASE
+                    WHEN %s IN ('reviewed', 'closed') THEN COALESCE(reviewed_at, now())
+                    ELSE reviewed_at
+                END
+            WHERE pollution_alert_id = %s
+            RETURNING *
+        )
+        SELECT
+            a.pollution_alert_id,
+            a.generated_at,
+            a.alert_level,
+            a.status,
+            m.value::double precision AS measurement_value,
+            m.unit AS measurement_unit,
+            m.measured_at,
+            l.city,
+            l.name AS location_name,
+            p.code AS parameter_code,
+            p.display_name AS parameter_name,
+            tr.min_value::double precision AS threshold_value,
+            a.reviewed_at,
+            a.notes
+        FROM updated AS a
+        JOIN oltp.measurement_raw AS m
+            ON m.measurement_id = a.measurement_id
+        JOIN oltp.threshold_rule AS tr
+            ON tr.threshold_rule_id = a.threshold_rule_id
+        JOIN oltp.sensor AS s
+            ON s.sensor_id = m.sensor_id
+        JOIN oltp.location AS l
+            ON l.location_id = s.location_id
+        JOIN oltp.parameter AS p
+            ON p.parameter_id = s.parameter_id
+        """,
+        (payload.status, payload.notes, payload.status, pollution_alert_id),
+    )
+    return AlertResponse(**row)
+
+
+@app.get("/thresholds", response_model=list[ThresholdRuleResponse])
+def list_thresholds(
+    conn: DBConnection,
+    city: str | None = Query(default=None),
+    parameter: str | None = Query(default=None),
+) -> list[ThresholdRuleResponse]:
+    rows = fetch_all(
+        conn,
+        """
+        SELECT
+            tr.threshold_rule_id,
+            tr.parameter_id,
+            p.code AS parameter_code,
+            p.display_name AS parameter_name,
+            tr.city,
+            tr.warning_level,
+            tr.min_value::double precision AS min_value,
+            tr.is_active,
+            tr.updated_at
+        FROM oltp.threshold_rule AS tr
+        JOIN oltp.parameter AS p
+            ON p.parameter_id = tr.parameter_id
+        WHERE (%s::text IS NULL OR tr.city = %s)
+          AND (%s::text IS NULL OR p.code = %s)
+        ORDER BY tr.city, p.code, tr.min_value
+        """,
+        (city, city, parameter, parameter),
+    )
+    return [ThresholdRuleResponse(**row) for row in rows]
+
+
+@app.post("/thresholds", response_model=ThresholdRuleResponse)
+def upsert_threshold(
+    payload: ThresholdRuleRequest,
+    conn: DBConnection,
+) -> ThresholdRuleResponse:
+    if payload.warning_level not in {"low", "moderate", "high", "critical"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid warning level.")
+    if payload.min_value < 0:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="min_value must be non-negative.")
+
+    row = execute_one(
+        conn,
+        """
+        WITH selected_parameter AS (
+            SELECT parameter_id
+            FROM oltp.parameter
+            WHERE code = %s
+        ),
+        upserted AS (
+            INSERT INTO oltp.threshold_rule (parameter_id, city, warning_level, min_value, is_active)
+            SELECT parameter_id, %s, %s, %s, %s
+            FROM selected_parameter
+            ON CONFLICT (parameter_id, city, warning_level) DO UPDATE
+            SET min_value = EXCLUDED.min_value,
+                is_active = EXCLUDED.is_active,
+                updated_at = now()
+            RETURNING *
+        )
+        SELECT
+            tr.threshold_rule_id,
+            tr.parameter_id,
+            p.code AS parameter_code,
+            p.display_name AS parameter_name,
+            tr.city,
+            tr.warning_level,
+            tr.min_value::double precision AS min_value,
+            tr.is_active,
+            tr.updated_at
+        FROM upserted AS tr
+        JOIN oltp.parameter AS p
+            ON p.parameter_id = tr.parameter_id
+        """,
+        (payload.parameter_code, payload.city, payload.warning_level, payload.min_value, payload.is_active),
+    )
+    return ThresholdRuleResponse(**row)
+
+
+@app.patch("/thresholds/{threshold_rule_id}", response_model=ThresholdRuleResponse)
+def update_threshold(
+    threshold_rule_id: int,
+    payload: ThresholdRuleRequest,
+    conn: DBConnection,
+) -> ThresholdRuleResponse:
+    if payload.warning_level not in {"low", "moderate", "high", "critical"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid warning level.")
+    if payload.min_value < 0:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="min_value must be non-negative.")
+
+    row = execute_one(
+        conn,
+        """
+        WITH selected_parameter AS (
+            SELECT parameter_id
+            FROM oltp.parameter
+            WHERE code = %s
+        ),
+        updated AS (
+            UPDATE oltp.threshold_rule AS tr
+            SET parameter_id = selected_parameter.parameter_id,
+                city = %s,
+                warning_level = %s,
+                min_value = %s,
+                is_active = %s,
+                updated_at = now()
+            FROM selected_parameter
+            WHERE tr.threshold_rule_id = %s
+            RETURNING tr.*
+        )
+        SELECT
+            tr.threshold_rule_id,
+            tr.parameter_id,
+            p.code AS parameter_code,
+            p.display_name AS parameter_name,
+            tr.city,
+            tr.warning_level,
+            tr.min_value::double precision AS min_value,
+            tr.is_active,
+            tr.updated_at
+        FROM updated AS tr
+        JOIN oltp.parameter AS p
+            ON p.parameter_id = tr.parameter_id
+        """,
+        (
+            payload.parameter_code,
+            payload.city,
+            payload.warning_level,
+            payload.min_value,
+            payload.is_active,
+            threshold_rule_id,
+        ),
+    )
+    return ThresholdRuleResponse(**row)
+
+
+@app.get("/ingestion-runs", response_model=list[IngestionRunResponse])
+def list_ingestion_runs(
+    conn: DBConnection,
+    limit: int = Query(default=50, ge=1, le=200),
+) -> list[IngestionRunResponse]:
+    rows = fetch_all(
+        conn,
+        """
+        SELECT
+            ingestion_run_id,
+            run_type,
+            status,
+            started_at,
+            finished_at,
+            records_inserted,
+            records_failed,
+            error_message
+        FROM oltp.ingestion_run_log
+        ORDER BY started_at DESC
+        LIMIT %s
+        """,
+        (limit,),
+    )
+    return [IngestionRunResponse(**row) for row in rows]
 
 
 @app.get("/predictions", response_model=list[PredictionResponse])

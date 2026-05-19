@@ -9,6 +9,7 @@ description = "FastAPI backend for the Air Quality Intelligence System."
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.115.6",
+    "httpx==0.28.1",
     "uvicorn[standard]==0.34.0",
     "psycopg[binary]==3.2.3",
     "pydantic-settings==2.7.1",

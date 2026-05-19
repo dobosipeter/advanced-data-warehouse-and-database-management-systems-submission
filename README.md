@@ -56,8 +56,15 @@ The API now exposes the first operational endpoints from PostgreSQL:
 - `GET /locations`
 - `GET /measurements`
 - `GET /alerts`
+- `PATCH /alerts/{pollution_alert_id}`
+- `GET /thresholds`
+- `POST /thresholds`
+- `PATCH /thresholds/{threshold_rule_id}`
+- `GET /ingestion-runs`
 - `GET /predictions`
 - `POST /demo/refresh` (token-protected, optional command wiring)
+
+The Streamlit frontend consumes the API through `API_BASE_URL` and includes pages for operational overview, station exploration, threshold management, alert review, and system status.
 
 The incremental ingestion uses the latest successful `oltp.ingestion_run_log.finished_at` value as its lower bound, falling back to `started_at` for legacy/incomplete log rows, and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements.
 

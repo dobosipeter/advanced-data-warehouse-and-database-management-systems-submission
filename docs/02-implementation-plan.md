@@ -227,7 +227,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #62 |
-| Status | Blocked (needs WI-10) |
+| Status | Done |
 | Dependencies | WI-10 |
 | Inputs | FastAPI endpoints |
 | Outputs | Multi-page Streamlit app |

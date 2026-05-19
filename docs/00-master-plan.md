@@ -63,7 +63,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 ### Phase 2A: DBMS Layer (Depends on Phase 1)
 - [x] Threshold alert business process (Issue #58)
 - [x] Triggers & loose coupling (Issue #59)
-- [ ] Transactions & error handling (Issue #60)
+- [x] Transactions & error handling (Issue #60)
 - [ ] FastAPI backend (Issue #61)
 - [ ] Streamlit operational GUI (Issue #62)
 - [ ] Columnstore/indexing & partitioning (Issue #63)

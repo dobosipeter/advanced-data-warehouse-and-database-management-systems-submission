@@ -17,6 +17,7 @@ from psycopg.types.json import Jsonb
 
 DEFAULT_BUDAPEST_BBOX = "18.9250,47.3494,19.3340,47.6130"
 DEFAULT_PARAMETERS = "pm25,pm10,no2,o3"
+MAX_ERROR_MESSAGE_LENGTH = 4000
 DEFAULT_PM25_THRESHOLD_RULES = (
     ("low", Decimal("0")),
     ("moderate", Decimal("10")),
@@ -378,14 +379,25 @@ def sensor_matches_scope(sensor: dict[str, Any], parameters: tuple[str, ...]) ->
     return (parameter.get("name") or "").lower() in {item.lower() for item in parameters}
 
 
+def summarize_errors(errors: list[str]) -> str | None:
+    if not errors:
+        return None
+    summary = " | ".join(errors)
+    if len(summary) <= MAX_ERROR_MESSAGE_LENGTH:
+        return summary
+    return f"{summary[: MAX_ERROR_MESSAGE_LENGTH - 3]}..."
+
+
 def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
     client = OpenAQClient(config)
     inserted = 0
     failed = 0
+    error_messages: list[str] = []
 
-    with psycopg.connect(config.database_url) as conn:
+    with psycopg.connect(config.database_url, autocommit=True) as conn:
         repo = IngestionRepository(conn)
-        run_id = repo.create_run(mode)
+        with conn.transaction():
+            run_id = repo.create_run(mode)
 
         try:
             now = datetime.now(UTC)
@@ -398,13 +410,14 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
             seen_sensors = 0
 
             for params, payload in client.locations():
-                repo.store_raw_response(
-                    run_id,
-                    "/locations",
-                    f"{config.openaq_base_url}/locations",
-                    params,
-                    payload,
-                )
+                with conn.transaction():
+                    repo.store_raw_response(
+                        run_id,
+                        "/locations",
+                        f"{config.openaq_base_url}/locations",
+                        params,
+                        payload,
+                    )
 
                 for location in payload.get("results") or []:
                     if not location_matches_scope(location, config.cities):
@@ -412,53 +425,65 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
                     if config.max_locations is not None and seen_locations >= config.max_locations:
                         break
 
-                    seen_locations += 1
-                    location_id = repo.upsert_location(location)
-                    if "pm25" in {parameter.lower() for parameter in config.parameters}:
-                        repo.ensure_default_pm25_threshold_rules(location_city_name(location))
-                    sensors = [sensor for sensor in location.get("sensors", []) if sensor_matches_scope(sensor, config.parameters)]
-
-                    if not sensors:
-                        for sensor_params, sensor_payload in client.sensors(location["id"]):
-                            repo.store_raw_response(
-                                run_id,
-                                f"/locations/{location['id']}/sensors",
-                                f"{config.openaq_base_url}/locations/{location['id']}/sensors",
-                                sensor_params,
-                                sensor_payload,
-                            )
-                            sensors.extend(
+                    try:
+                        with conn.transaction():
+                            seen_locations += 1
+                            location_id = repo.upsert_location(location)
+                            if "pm25" in {parameter.lower() for parameter in config.parameters}:
+                                repo.ensure_default_pm25_threshold_rules(location_city_name(location))
+                            sensors = [
                                 sensor
-                                for sensor in sensor_payload.get("results") or []
+                                for sensor in location.get("sensors", [])
                                 if sensor_matches_scope(sensor, config.parameters)
-                            )
+                            ]
 
-                    for sensor in sensors:
-                        if config.max_sensors is not None and seen_sensors >= config.max_sensors:
-                            break
+                            if not sensors:
+                                for sensor_params, sensor_payload in client.sensors(location["id"]):
+                                    repo.store_raw_response(
+                                        run_id,
+                                        f"/locations/{location['id']}/sensors",
+                                        f"{config.openaq_base_url}/locations/{location['id']}/sensors",
+                                        sensor_params,
+                                        sensor_payload,
+                                    )
+                                    sensors.extend(
+                                        sensor
+                                        for sensor in sensor_payload.get("results") or []
+                                        if sensor_matches_scope(sensor, config.parameters)
+                                    )
 
-                        seen_sensors += 1
-                        sensor_id = repo.upsert_sensor(sensor, location_id)
-                        try:
-                            for measurement_params, measurement_payload in client.measurements(
-                                sensor["id"],
-                                datetime_from,
-                                now,
-                            ):
-                                repo.store_raw_response(
-                                    run_id,
-                                    f"/sensors/{sensor['id']}/measurements",
-                                    f"{config.openaq_base_url}/sensors/{sensor['id']}/measurements",
-                                    measurement_params,
-                                    measurement_payload,
-                                )
-                                for measurement in measurement_payload.get("results") or []:
-                                    measurement_id = repo.insert_measurement(sensor_id, run_id, measurement)
-                                    if measurement_id is not None:
-                                        inserted += 1
-                        except Exception:
-                            failed += 1
-                            raise
+                            for sensor in sensors:
+                                if config.max_sensors is not None and seen_sensors >= config.max_sensors:
+                                    break
+
+                                seen_sensors += 1
+                                try:
+                                    with conn.transaction():
+                                        sensor_id = repo.upsert_sensor(sensor, location_id)
+                                        for measurement_params, measurement_payload in client.measurements(
+                                            sensor["id"],
+                                            datetime_from,
+                                            now,
+                                        ):
+                                            repo.store_raw_response(
+                                                run_id,
+                                                f"/sensors/{sensor['id']}/measurements",
+                                                f"{config.openaq_base_url}/sensors/{sensor['id']}/measurements",
+                                                measurement_params,
+                                                measurement_payload,
+                                            )
+                                            for measurement in measurement_payload.get("results") or []:
+                                                measurement_id = repo.insert_measurement(sensor_id, run_id, measurement)
+                                                if measurement_id is not None:
+                                                    inserted += 1
+                                except Exception as exc:
+                                    failed += 1
+                                    error_messages.append(
+                                        f"sensor {sensor['id']} at location {location['id']} rolled back: {exc}"
+                                    )
+                    except Exception as exc:
+                        failed += 1
+                        error_messages.append(f"location {location['id']} rolled back: {exc}")
 
                     if config.max_sensors is not None and seen_sensors >= config.max_sensors:
                         break
@@ -466,12 +491,14 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
                 if config.max_locations is not None and seen_locations >= config.max_locations:
                     break
 
-            repo.finish_run(run_id, "succeeded", inserted, failed)
-            conn.commit()
+            final_status = "partial" if failed else "succeeded"
+            with conn.transaction():
+                repo.finish_run(run_id, final_status, inserted, failed, summarize_errors(error_messages))
             return inserted, failed
         except Exception as exc:
-            repo.finish_run(run_id, "failed", inserted, failed + 1, str(exc))
-            conn.commit()
+            error_messages.append(f"run failed: {exc}")
+            with conn.transaction():
+                repo.finish_run(run_id, "failed", inserted, failed + 1, summarize_errors(error_messages))
             raise
 
 

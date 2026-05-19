@@ -185,7 +185,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #60 |
-| Status | Blocked (needs WI-04) |
+| Status | Done |
 | Dependencies | WI-04 |
 | Inputs | Ingestion and alert code |
 | Outputs | Transaction-wrapped database operations |

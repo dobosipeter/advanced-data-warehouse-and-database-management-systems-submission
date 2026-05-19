@@ -54,6 +54,8 @@ The incremental ingestion uses the latest successful `oltp.ingestion_run_log.sta
 
 New PM2.5 measurements now also drive the operational alert workflow: the ingestion worker ensures default city threshold rules exist for PM2.5, a PostgreSQL trigger creates `oltp.pollution_alert` rows with status `open` for moderate/high/critical readings, and an `audit.pollution_alert_outbox` table records alert events for downstream jobs.
 
+The ingestion worker now runs with explicit transaction boundaries: each location is processed as a batch transaction, each sensor runs inside a savepoint, failed sensor batches are rolled back without corrupting successful batches, and `oltp.ingestion_run_log` ends as `succeeded`, `partial`, or `failed` with summarized error details.
+
 An example cron configuration is provided in `scripts/air_quality_pipeline.crontab`. It runs the pipeline every 3 hours:
 
 ```bash

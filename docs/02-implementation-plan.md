@@ -127,7 +127,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #53 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-04 |
 | Inputs | Working ingestion script |
 | Outputs | Incremental mode working, scheduler config |
@@ -148,7 +148,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #58 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-04, WI-05 |
 | Inputs | ThresholdRule table, MeasurementRaw table |
 | Outputs | Working alert generation logic |
@@ -167,7 +167,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #59 |
-| Status | Blocked (needs WI-05) |
+| Status | Done |
 | Dependencies | WI-05 |
 | Inputs | OLTP tables, alert business logic |
 | Outputs | PostgreSQL trigger functions |

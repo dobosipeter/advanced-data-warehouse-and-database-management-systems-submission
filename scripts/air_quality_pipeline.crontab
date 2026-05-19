@@ -1,0 +1,7 @@
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+AIR_QUALITY_REPO=/path/to/advanced-data-warehouse-and-database-management-systems-submission
+PYTHON_BIN=python3
+
+# Run the incremental pipeline every 3 hours.
+0 */3 * * * cd "${AIR_QUALITY_REPO}" && PYTHON_BIN="${PYTHON_BIN}" ./scripts/run_pipeline.sh >> /tmp/air-quality-pipeline.log 2>&1

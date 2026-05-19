@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 import time
+from decimal import Decimal
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Iterable
@@ -16,6 +17,12 @@ from psycopg.types.json import Jsonb
 
 DEFAULT_BUDAPEST_BBOX = "18.9250,47.3494,19.3340,47.6130"
 DEFAULT_PARAMETERS = "pm25,pm10,no2,o3"
+DEFAULT_PM25_THRESHOLD_RULES = (
+    ("low", Decimal("0")),
+    ("moderate", Decimal("10")),
+    ("high", Decimal("25")),
+    ("critical", Decimal("50")),
+)
 
 
 class IngestionError(RuntimeError):
@@ -236,7 +243,7 @@ class IngestionRepository:
     def upsert_location(self, location: dict[str, Any]) -> int:
         country = location.get("country") or {}
         coordinates = location.get("coordinates") or {}
-        city = location.get("locality") or location.get("city") or location.get("name") or "Unknown"
+        city = location_city_name(location)
 
         with self.conn.cursor() as cur:
             cur.execute(
@@ -297,7 +304,21 @@ class IngestionRepository:
             )
             return int(cur.fetchone()[0])
 
-    def insert_measurement(self, sensor_id: int, run_id: int, measurement: dict[str, Any]) -> bool:
+    def ensure_default_pm25_threshold_rules(self, city: str) -> None:
+        with self.conn.cursor() as cur:
+            for warning_level, min_value in DEFAULT_PM25_THRESHOLD_RULES:
+                cur.execute(
+                    """
+                    INSERT INTO oltp.threshold_rule (parameter_id, city, warning_level, min_value)
+                    SELECT parameter_id, %s, %s, %s
+                    FROM oltp.parameter
+                    WHERE code = 'pm25'
+                    ON CONFLICT (parameter_id, city, warning_level) DO NOTHING
+                    """,
+                    (city, warning_level, min_value),
+                )
+
+    def insert_measurement(self, sensor_id: int, run_id: int, measurement: dict[str, Any]) -> int | None:
         measured_at = measurement_time(measurement)
         value = measurement.get("value")
         parameter = measurement.get("parameter") or {}
@@ -316,11 +337,15 @@ class IngestionRepository:
                 """,
                 (sensor_id, measured_at, value, unit, run_id, Jsonb(measurement)),
             )
-            return cur.fetchone() is not None
-
+            row = cur.fetchone()
+            return None if row is None else int(row[0])
 
 def normalize_unit(unit: str) -> str:
     return unit.replace("µ", "u").replace("³", "3")
+
+
+def location_city_name(location: dict[str, Any]) -> str:
+    return location.get("locality") or location.get("city") or location.get("name") or "Unknown"
 
 
 def measurement_time(measurement: dict[str, Any]) -> str | None:
@@ -389,6 +414,8 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
 
                     seen_locations += 1
                     location_id = repo.upsert_location(location)
+                    if "pm25" in {parameter.lower() for parameter in config.parameters}:
+                        repo.ensure_default_pm25_threshold_rules(location_city_name(location))
                     sensors = [sensor for sensor in location.get("sensors", []) if sensor_matches_scope(sensor, config.parameters)]
 
                     if not sensors:
@@ -426,7 +453,8 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
                                     measurement_payload,
                                 )
                                 for measurement in measurement_payload.get("results") or []:
-                                    if repo.insert_measurement(sensor_id, run_id, measurement):
+                                    measurement_id = repo.insert_measurement(sensor_id, run_id, measurement)
+                                    if measurement_id is not None:
                                         inserted += 1
                         except Exception:
                             failed += 1

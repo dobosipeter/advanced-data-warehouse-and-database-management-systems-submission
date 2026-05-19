@@ -12,6 +12,13 @@ INSERT INTO oltp.location (openaq_location_id, name, city, country, latitude, lo
 VALUES (-9001, 'Verify Station', 'Budapest', 'HU', 47.4979, 19.0402, 'Europe/Budapest')
 RETURNING location_id \gset verify_
 
+INSERT INTO oltp.threshold_rule (parameter_id, city, warning_level, min_value)
+VALUES
+    (:verify_parameter_id, 'Budapest', 'low', 0.0000),
+    (:verify_parameter_id, 'Budapest', 'moderate', 10.0000),
+    (:verify_parameter_id, 'Budapest', 'high', 25.0000),
+    (:verify_parameter_id, 'Budapest', 'critical', 50.0000);
+
 INSERT INTO oltp.sensor (openaq_sensor_id, location_id, parameter_id, unit)
 VALUES (-9001, :verify_location_id, :verify_parameter_id, 'ug/m3')
 RETURNING sensor_id \gset verify_
@@ -20,15 +27,64 @@ INSERT INTO oltp.measurement_raw (sensor_id, measured_at, value, unit, ingestion
 VALUES (:verify_sensor_id, '2026-01-01T00:00:00Z', 12.3400, 'ug/m3', :verify_ingestion_run_id)
 RETURNING measurement_id \gset verify_
 
-INSERT INTO oltp.threshold_rule (parameter_id, city, warning_level, min_value)
-VALUES (:verify_parameter_id, 'Budapest', 'moderate', 10.0000)
-RETURNING threshold_rule_id \gset verify_
-
-INSERT INTO oltp.pollution_alert (measurement_id, threshold_rule_id, alert_level, status)
-VALUES (:verify_measurement_id, :verify_threshold_rule_id, 'moderate', 'open');
-
 DO $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM oltp.pollution_alert
+        WHERE measurement_id = (
+            SELECT measurement_id
+            FROM oltp.measurement_raw
+            WHERE sensor_id = (SELECT sensor_id FROM oltp.sensor WHERE openaq_sensor_id = -9001)
+              AND measured_at = '2026-01-01T00:00:00Z'
+        )
+          AND alert_level = 'moderate'
+          AND status = 'open'
+    ) THEN
+        RAISE EXCEPTION 'Expected trigger-generated pollution alert to exist';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM audit.pollution_alert_outbox
+        WHERE measurement_id = (
+            SELECT measurement_id
+            FROM oltp.measurement_raw
+            WHERE sensor_id = (SELECT sensor_id FROM oltp.sensor WHERE openaq_sensor_id = -9001)
+              AND measured_at = '2026-01-01T00:00:00Z'
+        )
+          AND event_type = 'created'
+          AND current_status = 'open'
+    ) THEN
+        RAISE EXCEPTION 'Expected alert outbox to contain created event';
+    END IF;
+
+    UPDATE oltp.pollution_alert
+    SET status = 'reviewed',
+        reviewed_at = now()
+    WHERE measurement_id = (
+        SELECT measurement_id
+        FROM oltp.measurement_raw
+        WHERE sensor_id = (SELECT sensor_id FROM oltp.sensor WHERE openaq_sensor_id = -9001)
+          AND measured_at = '2026-01-01T00:00:00Z'
+    );
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM audit.pollution_alert_outbox
+        WHERE measurement_id = (
+            SELECT measurement_id
+            FROM oltp.measurement_raw
+            WHERE sensor_id = (SELECT sensor_id FROM oltp.sensor WHERE openaq_sensor_id = -9001)
+              AND measured_at = '2026-01-01T00:00:00Z'
+        )
+          AND event_type = 'status_changed'
+          AND previous_status = 'open'
+          AND current_status = 'reviewed'
+    ) THEN
+        RAISE EXCEPTION 'Expected alert outbox to contain status change event';
+    END IF;
+
     BEGIN
         INSERT INTO oltp.location (openaq_location_id, name, city, country, latitude, longitude)
         VALUES (-9002, 'Bad Latitude', 'Budapest', 'HU', 100, 19.0402);

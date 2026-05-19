@@ -178,6 +178,7 @@ SQL Server remains a defensible alternative if strict course-technology alignmen
 - Model metadata, training runs, feature stores
 
 ### Audit Schema (`audit`)
+- `pollution_alert_outbox` event log for trigger-generated alert events; downstream jobs can read unprocessed rows for notifications, integrations, or audit review
 - Change logs, data lineage
 
 ---
@@ -224,7 +225,8 @@ advanced-data-warehouse-and-database-management-systems-submission/
 │   └── Caddyfile
 ├── scripts/
 │   ├── backup_db.sh
-│   └── run_pipeline.sh
+│   ├── run_pipeline.sh
+│   └── air_quality_pipeline.crontab
 ├── reports/
 │   ├── dbms/
 │   │   ├── report.tex

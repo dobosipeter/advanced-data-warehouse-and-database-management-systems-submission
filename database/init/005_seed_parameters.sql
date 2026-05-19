@@ -35,3 +35,20 @@ SET
     min_value = EXCLUDED.min_value,
     max_value = EXCLUDED.max_value,
     sort_order = EXCLUDED.sort_order;
+
+INSERT INTO oltp.threshold_rule (parameter_id, city, warning_level, min_value)
+SELECT parameter_id, 'Budapest', warning_level, min_value
+FROM oltp.parameter
+CROSS JOIN (
+    VALUES
+        ('low', 0::numeric),
+        ('moderate', 10::numeric),
+        ('high', 25::numeric),
+        ('critical', 50::numeric)
+) AS rules (warning_level, min_value)
+WHERE code = 'pm25'
+ON CONFLICT (parameter_id, city, warning_level) DO UPDATE
+SET
+    min_value = EXCLUDED.min_value,
+    is_active = true,
+    updated_at = now();

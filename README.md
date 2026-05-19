@@ -115,3 +115,5 @@ An example cron configuration is provided in `scripts/air_quality_pipeline.cront
 ```bash
 crontab scripts/air_quality_pipeline.crontab
 ```
+
+Deployment and server-access notes for the current Hetzner VM flow are tracked in `docs/05-hetzner-access-and-deployment.md`.

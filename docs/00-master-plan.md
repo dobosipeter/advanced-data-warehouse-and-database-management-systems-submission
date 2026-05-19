@@ -18,7 +18,7 @@ This document is the high-level control plane for the Air Quality Intelligence S
 
 **Azure DevOps Board:** https://dev.azure.com/dop3bp/AirQualityIntelligence
 
-**Deployment Target:** https://mw79on-demo.online (Oracle Cloud VM + Docker Compose)
+**Deployment Target:** https://mw79on-demo.online (Hetzner Cloud VM + Docker Compose)
 
 ---
 

@@ -446,11 +446,11 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Acceptance | https://mw79on-demo.online shows dashboard, https://api.mw79on-demo.online/docs shows Swagger |
 
 **Scope:**
-- Provision Oracle Cloud VM (or alternative VPS)
+- Provision Hetzner Cloud VM (selected alternative VPS)
 - Install Docker, configure UFW
 - Clone repo, create .env
 - Set up Caddy with production Caddyfile
-- Configure Cloudflare DNS (A records → VM IP)
+- Configure Namecheap DNS (A records → VM IP)
 - `docker compose up -d --build`
 - Run initial data load
 - Verify public access + HTTPS

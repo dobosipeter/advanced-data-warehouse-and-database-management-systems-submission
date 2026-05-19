@@ -94,10 +94,10 @@ This document records **what is found where** across all relevant locations for 
 | ML | scikit-learn | Linear Regression / Random Forest for PM2.5 prediction |
 | Containerization | Docker Compose | All services containerized |
 | Reverse Proxy | Caddy | Auto HTTPS, simple config |
-| Hosting | Oracle Cloud VM (Ubuntu) | Always Free tier target |
-| DNS/CDN | Cloudflare | Free plan, DNS + HTTPS proxy |
+| Hosting | Hetzner Cloud VM (Ubuntu) | Paid VPS fallback after Oracle signup failed |
+| DNS/CDN | Namecheap DNS | Domain currently managed directly at registrar |
 | Domain | mw79on-demo.online | Purchased, for public demo |
-| CI/CD | GitHub Actions | SSH deploy to Oracle VM |
+| CI/CD | GitHub Actions | SSH deploy to Hetzner VM |
 | Reports | LaTeX (article class) | 2-page PDFs per course |
 | Slides | LaTeX (Beamer) | 10-min presentation per course |
 | Project tracking | Azure DevOps | https://dev.azure.com/dop3bp/AirQualityIntelligence |
@@ -283,7 +283,7 @@ advanced-data-warehouse-and-database-management-systems-submission/
 |---|---|
 | Domain | mw79on-demo.online |
 | Public URLs | https://mw79on-demo.online (dashboard), https://api.mw79on-demo.online/docs (API) |
-| VM target | Oracle Cloud Ubuntu 22.04/24.04, ≥4GB RAM |
+| VM target | Hetzner Cloud Ubuntu 24.04, ≥4GB RAM |
 | Ports exposed | 22 (SSH), 80 (HTTP), 443 (HTTPS) |
 | PostgreSQL port | 5432 (internal only, not exposed) |
 | Docker volume | postgres_data (persistent) |

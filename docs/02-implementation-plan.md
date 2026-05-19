@@ -350,7 +350,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #68 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-15 |
 | Inputs | Measurement data in DW |
 | Outputs | Classification logic, populated risk_class_key in facts |
@@ -369,7 +369,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #69 |
-| Status | Ready |
+| Status | Done |
 | Dependencies | WI-15 |
 | Inputs | Historical measurements in DW |
 | Outputs | `workers/train_model.py`, `workers/predict.py`, model artifact |

@@ -41,6 +41,7 @@ class IngestionConfig:
     cities: tuple[str, ...]
     parameters: tuple[str, ...]
     history_days: int
+    incremental_overlap_hours: int
     page_limit: int
     max_pages: int
     max_locations: int | None
@@ -67,6 +68,8 @@ class IngestionConfig:
             cities=csv_tuple(args.cities or os.getenv("OPENAQ_CITIES", "Budapest")),
             parameters=csv_tuple(args.parameters or os.getenv("OPENAQ_PARAMETERS", DEFAULT_PARAMETERS)),
             history_days=args.history_days or int(os.getenv("INGESTION_HISTORY_DAYS", "180")),
+            incremental_overlap_hours=args.incremental_overlap_hours
+            or int(os.getenv("INGESTION_INCREMENTAL_OVERLAP_HOURS", "12")),
             page_limit=args.page_limit or int(os.getenv("OPENAQ_PAGE_LIMIT", "1000")),
             max_pages=args.max_pages or int(os.getenv("OPENAQ_MAX_PAGES", "20")),
             max_locations=args.max_locations if args.max_locations is not None else env_int("OPENAQ_MAX_LOCATIONS", 10),
@@ -194,7 +197,13 @@ class IngestionRepository:
                 (status, inserted, failed, error, run_id),
             )
 
-    def last_successful_watermark(self) -> datetime | None:
+    def latest_measurement_watermark(self) -> datetime | None:
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT max(measured_at) FROM oltp.measurement_raw")
+            value = cur.fetchone()[0]
+            return value
+
+    def last_successful_run_watermark(self) -> datetime | None:
         with self.conn.cursor() as cur:
             cur.execute(
                 """
@@ -424,7 +433,11 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
         try:
             now = datetime.now(UTC)
             if mode == "incremental":
-                datetime_from = repo.last_successful_watermark() or now - timedelta(days=1)
+                latest_measurement = repo.latest_measurement_watermark()
+                if latest_measurement is not None:
+                    datetime_from = latest_measurement - timedelta(hours=config.incremental_overlap_hours)
+                else:
+                    datetime_from = repo.last_successful_run_watermark() or now - timedelta(days=1)
             else:
                 datetime_from = now - timedelta(days=config.history_days)
 
@@ -494,7 +507,7 @@ def run_ingestion(config: IngestionConfig, mode: str) -> tuple[int, int]:
                                                 measurement_params,
                                                 measurement_payload,
                                             )
-                                        for measurement in measurement_payload.get("results") or []:
+                                            for measurement in measurement_payload.get("results") or []:
                                                 try:
                                                     measurement_id = repo.insert_measurement(
                                                         sensor_id,
@@ -546,6 +559,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cities", help="Comma-separated locality/name filters.")
     parser.add_argument("--parameters", help="Comma-separated OpenAQ parameter names, e.g. pm25,pm10,no2,o3.")
     parser.add_argument("--history-days", type=int, help="Historical window for initial loads.")
+    parser.add_argument(
+        "--incremental-overlap-hours",
+        type=int,
+        help="Hours to subtract from the latest ingested measurement timestamp during incremental loads.",
+    )
     parser.add_argument("--page-limit", type=int, help="OpenAQ page size.")
     parser.add_argument("--max-pages", type=int, help="Maximum pages to request per endpoint.")
     parser.add_argument("--max-locations", type=int, help="Maximum matching locations to ingest.")

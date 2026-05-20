@@ -93,6 +93,19 @@ class FakeOpenAQClient:
                 ]
             },
         )
+        yield (
+            {"page": 2},
+            {
+                "results": [
+                    {
+                        "value": 31 if openaq_sensor_id == 1 else 13,
+                        "unit": "ug/m3",
+                        "datetime": {"utc": f"2026-05-19T01:00:0{openaq_sensor_id}Z"},
+                        "parameter": {"units": "ug/m3"},
+                    }
+                ]
+            },
+        )
 
 
 class FailingLocationsClient(FakeOpenAQClient):
@@ -114,7 +127,10 @@ class FakeRepository:
     def finish_run(self, run_id: int, status: str, inserted: int, failed: int, error: str | None = None) -> None:
         self.finished_runs.append((status, inserted, failed, error))
 
-    def last_successful_watermark(self):
+    def latest_measurement_watermark(self):
+        return None
+
+    def last_successful_run_watermark(self):
         return None
 
     def store_raw_response(self, run_id: int, endpoint: str, request_url: str, params: dict, payload: dict) -> None:
@@ -149,6 +165,7 @@ class RunIngestionTransactionTests(unittest.TestCase):
             cities=("Budapest",),
             parameters=("pm25",),
             history_days=30,
+            incremental_overlap_hours=12,
             page_limit=100,
             max_pages=2,
             max_locations=None,
@@ -166,7 +183,7 @@ class RunIngestionTransactionTests(unittest.TestCase):
         ):
             inserted, failed = run_ingestion(self.config, "initial")
 
-        self.assertEqual((inserted, failed), (1, 1))
+        self.assertEqual((inserted, failed), (2, 1))
         repo = FakeRepository.instances[0]
         self.assertEqual(repo.finished_runs[-1][0], "partial")
         self.assertIn("sensor 2 at location 1 rolled back", repo.finished_runs[-1][3] or "")

@@ -106,7 +106,7 @@ Generate the latest PM2.5 predictions manually with:
 docker compose run --rm worker python predict.py
 ```
 
-The incremental ingestion uses the latest successful `oltp.ingestion_run_log.finished_at` value as its lower bound, falling back to `started_at` for legacy/incomplete log rows, and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements.
+The incremental ingestion uses the latest ingested `oltp.measurement_raw.measured_at` value as its lower bound, subtracts a configurable overlap window (`INGESTION_INCREMENTAL_OVERLAP_HOURS`, default 12), and relies on the unique `(sensor_id, measured_at)` constraint to skip already loaded measurements. If no measurements exist yet, it falls back to the latest successful ingestion run timestamp, then to a one-day window.
 
 New PM2.5 measurements now also drive the operational alert workflow: the ingestion worker ensures default city threshold rules exist for PM2.5, a PostgreSQL trigger creates `oltp.pollution_alert` rows with status `open` for moderate/high/critical readings, and an `audit.pollution_alert_outbox` table records alert events for downstream jobs.
 

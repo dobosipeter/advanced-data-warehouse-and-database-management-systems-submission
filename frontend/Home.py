@@ -1,8 +1,60 @@
 import pandas as pd
-import plotly.express as px
+import numpy as np
+import plotly.graph_objects as go
 import streamlit as st
 
 from api_client import api_get, dataframe_from
+from dashboard_support import load_measurement_series
+
+
+def build_daily_prediction(series: pd.DataFrame, horizon_days: int = 14) -> pd.DataFrame:
+    daily = (
+        series[["day", "daily_mean"]]
+        .dropna()
+        .drop_duplicates("day")
+        .sort_values("day")
+        .set_index("day")
+    )
+    if len(daily) < 4:
+        return pd.DataFrame()
+
+    daily = daily.asfreq("D")
+    daily["daily_mean"] = daily["daily_mean"].interpolate(limit_direction="both")
+    values = daily["daily_mean"].astype(float)
+    train_len = len(values)
+    steps = np.arange(train_len, dtype=float)
+    days_of_year = values.index.dayofyear.to_numpy(dtype=float)
+    design = np.column_stack(
+        [
+            np.ones(train_len),
+            steps,
+            np.sin(2 * np.pi * days_of_year / 365.25),
+            np.cos(2 * np.pi * days_of_year / 365.25),
+        ]
+    )
+    try:
+        coefficients, *_ = np.linalg.lstsq(design, values.to_numpy(), rcond=None)
+    except np.linalg.LinAlgError:
+        return pd.DataFrame()
+
+    prediction_index = pd.date_range(
+        values.index.min(),
+        values.index.max() + pd.Timedelta(days=horizon_days),
+        freq="D",
+        tz=values.index.tz,
+    )
+    prediction_steps = np.arange(len(prediction_index), dtype=float)
+    prediction_days = prediction_index.dayofyear.to_numpy(dtype=float)
+    prediction_design = np.column_stack(
+        [
+            np.ones(len(prediction_index)),
+            prediction_steps,
+            np.sin(2 * np.pi * prediction_days / 365.25),
+            np.cos(2 * np.pi * prediction_days / 365.25),
+        ]
+    )
+    prediction_values = np.maximum(prediction_design @ coefficients, 0)
+    return pd.DataFrame({"day": prediction_index, "predicted_daily_mean": prediction_values})
 
 st.set_page_config(
     page_title="Air Quality Intelligence",
@@ -19,6 +71,7 @@ st.markdown(
 health = api_get("/health", default={})
 locations = dataframe_from(api_get("/locations", default=[]))
 measurements = dataframe_from(api_get("/measurements", params={"limit": 500}, default=[]))
+measurement_series = load_measurement_series(limit=50000)
 alerts = dataframe_from(api_get("/alerts", default=[]))
 
 metric_columns = st.columns(4)
@@ -32,25 +85,54 @@ st.divider()
 
 # --- Daily average trend (aggregated to avoid spaghetti) ---
 st.subheader("Daily average concentration by pollutant")
-if measurements.empty:
+if measurement_series.empty:
     st.info("No measurements available yet.")
 else:
-    measurements["measured_at"] = pd.to_datetime(measurements["measured_at"], utc=True, errors="coerce")
-    measurements["day"] = measurements["measured_at"].dt.date
+    measurement_series["measured_hour"] = pd.to_datetime(
+        measurement_series["measured_hour"],
+        utc=True,
+        errors="coerce",
+    )
+    measurement_series = measurement_series.dropna(subset=["measured_hour", "average_value"])
+    measurement_series["day"] = measurement_series["measured_hour"].dt.floor("D")
     daily_avg = (
-        measurements.groupby(["day", "parameter_code"], as_index=False)["value"]
-        .mean()
-        .rename(columns={"value": "daily_mean"})
+        measurement_series.groupby(["day", "parameter_code"], as_index=False)
+        .agg(daily_mean=("average_value", "mean"), measurement_count=("measurement_count", "sum"))
+        .sort_values("day")
     )
-    chart = px.line(
-        daily_avg.sort_values("day"),
-        x="day",
-        y="daily_mean",
-        color="parameter_code",
-        markers=True,
-        labels={"day": "Date", "daily_mean": "Daily mean", "parameter_code": "Pollutant"},
+
+    chart = go.Figure()
+    for parameter, group in daily_avg.groupby("parameter_code", sort=True):
+        group = group.sort_values("day")
+        chart.add_trace(
+            go.Scatter(
+                x=group["day"],
+                y=group["daily_mean"],
+                mode="lines+markers",
+                name=f"{parameter} measured",
+                line=dict(width=2),
+            )
+        )
+        prediction = build_daily_prediction(group, horizon_days=14)
+        if not prediction.empty:
+            chart.add_trace(
+                go.Scatter(
+                    x=prediction["day"],
+                    y=prediction["predicted_daily_mean"],
+                    mode="lines",
+                    name=f"{parameter} predicted",
+                    line=dict(width=2, dash="dash"),
+                )
+            )
+
+    chart.update_layout(
+        height=360,
+        margin=dict(l=10, r=10, t=10, b=10),
+        legend_title_text="",
+        xaxis_title="Date",
+        yaxis_title="Daily mean concentration",
     )
-    chart.update_layout(height=340, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="")
+    st.caption("Solid lines are measured daily means. Dashed lines are per-pollutant model estimates over the historical window and the next 14 days.")
     st.plotly_chart(chart, use_container_width=True)
 
 st.divider()

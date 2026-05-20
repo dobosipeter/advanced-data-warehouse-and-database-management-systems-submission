@@ -156,9 +156,19 @@ The repository now includes a deployment workflow at `.github/workflows/deploy.y
 1. checks out the repository,
 2. validates the deployment scripts and Compose file,
 3. connects to the Hetzner VM over SSH,
-4. syncs the repository contents to `/opt/air-quality-intelligence`,
-5. runs `scripts/deploy_stack.sh`, and
-6. verifies the public dashboard and API URLs.
+4. creates the deployment/runtime directories and repairs ownership for the configured deployment user,
+5. syncs the repository contents to `/opt/air-quality-intelligence`,
+6. runs `scripts/deploy_stack.sh`, and
+7. verifies the public dashboard and API URLs.
+
+Runtime files are intentionally preserved during sync:
+
+- `.env`
+- `logs/`
+- `backups/postgres/`
+- `workers/model_artifacts/`
+
+Generated/development artifacts such as `.git/`, `__pycache__/`, and `*.egg-info/` are removed from the deployed tree before sync instead of being synchronized from the repository checkout. If the workflow connects as `root`, it also repairs ownership of the deploy tree before and after cleanup. If the workflow connects as a dedicated deployment user, that user should already own `DEPLOY_PATH`.
 
 ### Required GitHub repository secrets
 
@@ -168,7 +178,7 @@ Add these secrets before enabling the workflow:
 |---|---|
 | `SSH_HOST` | Hetzner IPv4 address |
 | `SSH_PORT` | `22` |
-| `SSH_USER` | `root` (or the deployment user if changed later) |
+| `SSH_USER` | `root` or a dedicated deploy user with ownership of `DEPLOY_PATH` and Docker access |
 | `SSH_PRIVATE_KEY` | Dedicated private deploy key for GitHub Actions |
 | `DEPLOY_PATH` | `/opt/air-quality-intelligence` |
 | `APP_URL` | `https://mw79on-demo.online` |
@@ -184,7 +194,16 @@ cat ~/.ssh/air_quality_github_actions.pub
 cat ~/.ssh/air_quality_github_actions
 ```
 
-- Add the **public** key to `/root/.ssh/authorized_keys` on the Hetzner VM.
+- Add the **public** key to the deployment user's `authorized_keys` on the Hetzner VM.
 - Add the **private** key content to the GitHub repository secret `SSH_PRIVATE_KEY`.
+
+If switching from `root` to a dedicated deployment user, run this once on the VM:
+
+```bash
+useradd --create-home --shell /bin/bash deploy
+usermod -aG docker deploy
+mkdir -p /opt/air-quality-intelligence
+chown -R deploy:deploy /opt/air-quality-intelligence
+```
 
 After the secrets are configured, the workflow can be triggered either by pushing to `main` or manually from the Actions tab.

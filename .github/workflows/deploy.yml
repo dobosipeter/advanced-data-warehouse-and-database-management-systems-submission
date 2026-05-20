@@ -51,16 +51,35 @@ jobs:
       - name: Ensure remote deploy path exists
         run: |
           SSH_PORT="${SSH_PORT:-22}"
-          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "mkdir -p '${DEPLOY_PATH}'"
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "\
+            mkdir -p '${DEPLOY_PATH}' && \
+            if [ \"\$(id -u)\" -eq 0 ]; then chown -R '${SSH_USER}:${SSH_USER}' '${DEPLOY_PATH}'; fi"
+
+      - name: Prepare remote tree for sync
+        run: |
+          SSH_PORT="${SSH_PORT:-22}"
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "\
+            mkdir -p '${DEPLOY_PATH}/logs' '${DEPLOY_PATH}/backups/postgres' '${DEPLOY_PATH}/workers/model_artifacts' && \
+            find '${DEPLOY_PATH}' \
+              -path '${DEPLOY_PATH}/.env' -prune -o \
+              -path '${DEPLOY_PATH}/backups' -prune -o \
+              -path '${DEPLOY_PATH}/logs' -prune -o \
+              -path '${DEPLOY_PATH}/workers/model_artifacts' -prune -o \
+              -type d \( -name '.git' -o -name '__pycache__' -o -name '*.egg-info' -o -name '.pytest_cache' -o -name '.mypy_cache' \) \
+              -prune -exec rm -rf {} + && \
+            if [ \"\$(id -u)\" -eq 0 ]; then chown -R '${SSH_USER}:${SSH_USER}' '${DEPLOY_PATH}'; fi"
 
       - name: Sync repository to server
         run: |
           SSH_PORT="${SSH_PORT:-22}"
           rsync -az --delete \
+            --omit-dir-times \
             --exclude ".git/" \
             --exclude ".github/" \
             --exclude ".env" \
+            --exclude "logs/" \
             --exclude "__pycache__/" \
+            --exclude "*.egg-info/" \
             --exclude ".pytest_cache/" \
             --exclude ".mypy_cache/" \
             --exclude "workers/model_artifacts/" \

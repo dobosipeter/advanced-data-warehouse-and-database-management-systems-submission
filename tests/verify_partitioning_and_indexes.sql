@@ -63,7 +63,7 @@ BEGIN
 
     plan_text := array_to_string(plan_lines, E'\n');
 
-    IF plan_text !~ 'Index Scan|Bitmap Index Scan' THEN
+    IF plan_text !~ 'Index Scan|Index Only Scan|Bitmap Index Scan' THEN
         RAISE EXCEPTION 'Expected EXPLAIN to use an index when seqscan is disabled. Plan: %', plan_text;
     END IF;
 

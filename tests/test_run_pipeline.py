@@ -40,6 +40,7 @@ class RunPipelineScriptTestCase(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHON_BIN"] = str(fake_python)
         env["PIPELINE_LOG_DIR"] = str(temp_dir / "logs")
+        env["MODEL_ARTIFACT_PATH"] = str(temp_dir / "model_artifacts" / "pm25_model.joblib")
         if fail_stage is not None:
             env["FAIL_STAGE"] = fail_stage
 
@@ -65,6 +66,7 @@ class RunPipelineScriptTestCase(unittest.TestCase):
             [
                 "workers/ingest.py --incremental",
                 "workers/etl.py",
+                "workers/train_model.py",
                 "workers/predict.py",
             ],
         )
@@ -88,6 +90,30 @@ class RunPipelineScriptTestCase(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0)
         self.assertEqual(commands, ["workers/train_model.py", "workers/predict.py"])
+
+    def test_predict_only_skips_training_when_model_artifact_exists(self) -> None:
+        temp_dir = Path(tempfile.mkdtemp(prefix="run-pipeline-test-"))
+        fake_python = self.make_fake_python(temp_dir)
+        artifact_path = temp_dir / "model_artifacts" / "pm25_model.joblib"
+        artifact_path.parent.mkdir(parents=True)
+        artifact_path.write_text("fake model", encoding="utf-8")
+        env = os.environ.copy()
+        env["PYTHON_BIN"] = str(fake_python)
+        env["PIPELINE_LOG_DIR"] = str(temp_dir / "logs")
+        env["MODEL_ARTIFACT_PATH"] = str(artifact_path)
+
+        completed = subprocess.run(
+            [str(SCRIPT_PATH), "predict-only"],
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        commands = (temp_dir / "command.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(commands, ["workers/predict.py"])
 
 
 if __name__ == "__main__":

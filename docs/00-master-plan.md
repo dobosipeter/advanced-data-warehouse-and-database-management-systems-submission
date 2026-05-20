@@ -84,10 +84,10 @@ This document is the high-level control plane for the Air Quality Intelligence S
 
 ### Phase 4: Documentation & Presentation (Can start in parallel with Phase 2)
 - [x] Architecture diagrams (Issue #76)
-- [ ] DBMS course PDF (Issue #72)
-- [ ] DW course PDF (Issue #73)
-- [ ] DBMS presentation slides & demo script (Issue #74)
-- [ ] DW presentation slides & demo script (Issue #75)
+- [x] DBMS course PDF (Issue #72)
+- [x] DW course PDF (Issue #73)
+- [x] DBMS presentation slides & demo script (Issue #74)
+- [x] DW presentation slides & demo script (Issue #75)
 
 ---
 
@@ -122,7 +122,7 @@ Within Phase 2B, these can be parallelized:
 | ETL tool | Python scripts | More portable than SSIS, demonstrates the concept equally well |
 | Dashboard | Streamlit (primary) + optional Power BI/Looker | Streamlit is self-hosted; Power BI can be added as bonus |
 | ML | scikit-learn | Simple, well-known, sufficient for the scope |
-| Deployment | Docker Compose on Oracle Cloud VM | Free tier, full control, impressive for demo |
+| Deployment | Docker Compose on Hetzner Cloud VM | Stable VPS target, full control, public HTTPS demo |
 | Reports/Slides | LaTeX (article + beamer) | Clean typesetting, version-controlled, consistent styling |
 | Project management | Azure DevOps (Epics/Issues/Tasks) | Structured tracking for multi-agent coordination |
 

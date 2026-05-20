@@ -435,7 +435,7 @@ This document breaks the project into bite-sized, agent-executable work items. E
 
 ## Phase 3: Deployment
 
-### WI-21: Cloud Deployment (Oracle Cloud VM)
+### WI-21: Cloud Deployment (Hetzner Cloud VM)
 | Field | Value |
 |---|---|
 | Azure DevOps | Issue #55 |

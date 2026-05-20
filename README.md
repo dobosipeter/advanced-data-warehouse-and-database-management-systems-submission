@@ -52,9 +52,9 @@ Run the end-to-end scheduled pipeline entrypoint:
 
 The pipeline script supports the following modes:
 
-- `./scripts/run_pipeline.sh full` — incremental ingest → ETL → predict
+- `./scripts/run_pipeline.sh full` — incremental ingest → ETL → train if the model artifact is missing → predict
 - `./scripts/run_pipeline.sh ingest-etl` — incremental ingest → ETL
-- `./scripts/run_pipeline.sh predict-only` — generate predictions from the latest trained model
+- `./scripts/run_pipeline.sh predict-only` — generate predictions from the latest trained model, training first if the artifact is missing
 - `./scripts/run_pipeline.sh train-predict` — retrain the PM2.5 model, then predict
 
 Each run writes a timestamped log under `logs/` plus `logs/pipeline-latest.log` and `logs/pipeline-latest.status` so scheduled executions leave an audit trail.

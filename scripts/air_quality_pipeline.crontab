@@ -6,5 +6,5 @@ PYTHON_BIN=python3
 # Refresh ingestion + DW every 3 hours.
 0 */3 * * * cd "${AIR_QUALITY_REPO}" && PYTHON_BIN="${PYTHON_BIN}" ./scripts/run_pipeline.sh ingest-etl >> /tmp/air-quality-pipeline.log 2>&1
 
-# Refresh predictions daily.
+# Refresh predictions daily, retraining first if the model artifact is missing.
 15 2 * * * cd "${AIR_QUALITY_REPO}" && PYTHON_BIN="${PYTHON_BIN}" ./scripts/run_pipeline.sh predict-only >> /tmp/air-quality-pipeline.log 2>&1

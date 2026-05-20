@@ -7,6 +7,7 @@ PYTHON_BIN="${PYTHON_BIN:-python}"
 PIPELINE_MODE="${1:-full}"
 PIPELINE_LOG_DIR="${PIPELINE_LOG_DIR:-${REPO_ROOT}/logs}"
 PIPELINE_TRAIN_MODEL="${PIPELINE_TRAIN_MODEL:-0}"
+MODEL_ARTIFACT_PATH="${MODEL_ARTIFACT_PATH:-${REPO_ROOT}/workers/model_artifacts/pm25_model.joblib}"
 RUN_TIMESTAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 RUN_LOG_PATH="${PIPELINE_LOG_DIR}/pipeline-${PIPELINE_MODE}-${RUN_TIMESTAMP}.log"
 LATEST_LOG_PATH="${PIPELINE_LOG_DIR}/pipeline-latest.log"
@@ -52,7 +53,7 @@ run_ingest_and_etl() {
 }
 
 run_prediction() {
-    if [[ "${PIPELINE_TRAIN_MODEL}" == "1" ]]; then
+    if [[ "${PIPELINE_TRAIN_MODEL}" == "1" || ! -f "${MODEL_ARTIFACT_PATH}" ]]; then
         run_stage train "${PYTHON_BIN}" workers/train_model.py || return $?
     fi
     run_stage predict "${PYTHON_BIN}" workers/predict.py || return $?

@@ -257,7 +257,7 @@ class ETLRepository:
                     ON m.value >= rc.min_value
                    AND (rc.max_value IS NULL OR m.value < rc.max_value)
                 WHERE m.value IS NOT NULL
-                  AND m.value > -1000
+                  AND m.value >= 0
                   AND m.value < 100000
                   AND NOT EXISTS (
                       SELECT 1

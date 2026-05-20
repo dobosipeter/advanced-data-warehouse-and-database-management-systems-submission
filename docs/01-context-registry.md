@@ -108,14 +108,14 @@ PostgreSQL 16 was selected as the primary database because it gives the project 
 
 - OLTP features for the DBMS course: transactions, constraints, triggers, functions, logging tables, JSONB staging payloads, backups, and operational indexes.
 - DW features for the warehouse course: separate staging/OLTP/DW schemas, star-schema tables, SCD2-friendly dimensions, BRIN indexes for time-series facts, materialized views if needed, and enough analytical SQL for the demo scope.
-- Practical delivery: first-class Docker support, no license or cloud dependency, easy local reproduction, and straightforward deployment on a small Oracle Cloud VM.
+- Practical delivery: first-class Docker support, no license or cloud dependency, easy local reproduction, and straightforward deployment on the Hetzner Cloud VM.
 - Portfolio value: PostgreSQL is widely used in production, so the implementation remains realistic rather than only matching a classroom tool.
 
 Alternatives considered:
 
 | Alternative | Strengths | Why not primary |
 |---|---|---|
-| SQL Server | Strong alignment with course topics such as SQL Server Agent, SSIS, columnstore indexes, partitioning, and triggers | Heavier local/container footprint, licensing/platform friction, less convenient for a Linux-first Oracle VM deployment |
+| SQL Server | Strong alignment with course topics such as SQL Server Agent, SSIS, columnstore indexes, partitioning, and triggers | Heavier local/container footprint, licensing/platform friction, less convenient for the Linux-first Hetzner deployment |
 | MySQL/MariaDB | Simple Docker setup, common OLTP engine | Weaker fit for DW features, SCD2/reporting patterns, analytical indexing, and JSON staging compared with PostgreSQL |
 | SQLite | Extremely simple and zero-service local development | Not a realistic server DBMS for transactions, concurrent ingestion/API access, scheduled jobs, backups, or DW demonstration |
 | DuckDB | Excellent embedded analytical engine for columnar analytics | Not suitable as the main operational database with concurrent API/GUI writes, triggers, alerts, and long-running service deployment |

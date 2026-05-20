@@ -23,6 +23,12 @@ def load_measurements(limit: int = 1000) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=120, show_spinner=False)
+def load_measurement_series(limit: int = 50000) -> pd.DataFrame:
+    frame = dataframe_from(api_get("/measurement-series", params={"limit": limit}, default=[]))
+    return prepare_datetime_columns(frame, "measured_hour")
+
+
+@st.cache_data(ttl=120, show_spinner=False)
 def load_alerts(limit: int = 1000) -> pd.DataFrame:
     frame = dataframe_from(api_get("/alerts", params={"limit": limit}, default=[]))
     return prepare_datetime_columns(frame, "generated_at", "measured_at", "reviewed_at")

@@ -68,6 +68,15 @@ class MeasurementResponse(APIModel):
     ingestion_run_id: int | None
 
 
+class MeasurementSeriesResponse(APIModel):
+    measured_hour: datetime
+    city: str
+    parameter_code: str
+    unit: str
+    average_value: float
+    measurement_count: int
+
+
 class AlertResponse(APIModel):
     pollution_alert_id: int
     generated_at: datetime
@@ -257,7 +266,7 @@ def list_measurements(
     parameter: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=1000),
+    limit: int = Query(default=200, ge=1, le=10000),
 ) -> list[MeasurementResponse]:
     rows = fetch_all(
         conn,
@@ -290,6 +299,45 @@ def list_measurements(
         (city, city, parameter, parameter, date_from, date_from, date_to, date_to, limit),
     )
     return [MeasurementResponse(**row) for row in rows]
+
+
+@app.get("/measurement-series", response_model=list[MeasurementSeriesResponse])
+def measurement_series(
+    conn: DBConnection,
+    city: str | None = Query(default=None),
+    parameter: str | None = Query(default=None),
+    date_from: datetime | None = Query(default=None),
+    date_to: datetime | None = Query(default=None),
+    limit: int = Query(default=10000, ge=1, le=50000),
+) -> list[MeasurementSeriesResponse]:
+    rows = fetch_all(
+        conn,
+        """
+        SELECT
+            date_trunc('hour', m.measured_at) AS measured_hour,
+            l.city,
+            p.code AS parameter_code,
+            m.unit,
+            AVG(m.value)::double precision AS average_value,
+            COUNT(*)::integer AS measurement_count
+        FROM oltp.measurement_raw AS m
+        JOIN oltp.sensor AS s
+            ON s.sensor_id = m.sensor_id
+        JOIN oltp.location AS l
+            ON l.location_id = s.location_id
+        JOIN oltp.parameter AS p
+            ON p.parameter_id = s.parameter_id
+        WHERE (%s::text IS NULL OR l.city = %s)
+          AND (%s::text IS NULL OR p.code = %s)
+          AND (%s::timestamptz IS NULL OR m.measured_at >= %s)
+          AND (%s::timestamptz IS NULL OR m.measured_at <= %s)
+        GROUP BY measured_hour, l.city, p.code, m.unit
+        ORDER BY measured_hour DESC, l.city, p.code
+        LIMIT %s
+        """,
+        (city, city, parameter, parameter, date_from, date_from, date_to, date_to, limit),
+    )
+    return [MeasurementSeriesResponse(**row) for row in rows]
 
 
 @app.get("/alerts", response_model=list[AlertResponse])

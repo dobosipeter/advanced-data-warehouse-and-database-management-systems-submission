@@ -1,5 +1,6 @@
+import numpy as np
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard_support import (
@@ -9,25 +10,77 @@ from dashboard_support import (
     format_number,
     load_alerts,
     load_locations,
+    load_measurement_series,
     load_measurements,
     normalize_date_selection,
     option_values,
 )
 
 
+def build_hourly_forecast(series: pd.DataFrame, horizon_hours: int = 72) -> pd.DataFrame:
+    hourly = (
+        series[["measured_hour", "hourly_mean"]]
+        .dropna()
+        .drop_duplicates("measured_hour")
+        .sort_values("measured_hour")
+        .set_index("measured_hour")
+    )
+    if len(hourly) < 6:
+        return pd.DataFrame()
+
+    hourly = hourly.asfreq("h")
+    hourly["hourly_mean"] = hourly["hourly_mean"].interpolate(limit_direction="both")
+    values = hourly["hourly_mean"].astype(float)
+    train_len = len(values)
+    steps = np.arange(train_len, dtype=float)
+    hours = values.index.hour.to_numpy(dtype=float)
+    design = np.column_stack(
+        [
+            np.ones(train_len),
+            steps,
+            np.sin(2 * np.pi * hours / 24),
+            np.cos(2 * np.pi * hours / 24),
+        ]
+    )
+    try:
+        coefficients, *_ = np.linalg.lstsq(design, values.to_numpy(), rcond=None)
+    except np.linalg.LinAlgError:
+        return pd.DataFrame()
+
+    forecast_index = pd.date_range(
+        values.index.max() + pd.Timedelta(hours=1),
+        periods=horizon_hours,
+        freq="h",
+        tz=values.index.tz,
+    )
+    future_steps = np.arange(train_len, train_len + horizon_hours, dtype=float)
+    future_hours = forecast_index.hour.to_numpy(dtype=float)
+    future_design = np.column_stack(
+        [
+            np.ones(horizon_hours),
+            future_steps,
+            np.sin(2 * np.pi * future_hours / 24),
+            np.cos(2 * np.pi * future_hours / 24),
+        ]
+    )
+    forecast_values = np.maximum(future_design @ coefficients, 0)
+    return pd.DataFrame({"measured_hour": forecast_index, "forecast_value": forecast_values})
+
+
 st.set_page_config(page_title="Air Quality Overview", layout="wide")
 st.title("Air Quality Overview")
-st.caption("Filtered KPIs, trend charts, and station rankings across all monitored locations.")
+st.caption("Measured hourly trends with per-city/pollutant forecasts for missing and upcoming data.")
 
 locations = load_locations()
-measurements = load_measurements()
+measurements = load_measurements(limit=10000)
+measurement_series = load_measurement_series()
 alerts = load_alerts()
 
-if measurements.empty:
+if measurements.empty or measurement_series.empty:
     st.info("No measurements available.")
     st.stop()
 
-default_start, default_end = combined_date_bounds((measurements, "measured_at"))
+default_start, default_end = combined_date_bounds((measurement_series, "measured_hour"))
 city_options = [ALL_OPTION, *option_values(locations if not locations.empty else measurements, "city")]
 selected_city = st.sidebar.selectbox("City", city_options, key="overview-city")
 
@@ -53,6 +106,7 @@ date_selection = st.sidebar.date_input(
     key="overview-dates",
 )
 date_range = normalize_date_selection(date_selection, default_start, default_end)
+forecast_horizon_hours = st.sidebar.slider("Forecast horizon", 24, 96, 72, 12)
 
 filtered_measurements = filter_frame(
     measurements,
@@ -61,6 +115,15 @@ filtered_measurements = filter_frame(
     parameter=selected_parameter,
     date_range=date_range,
     time_column="measured_at",
+)
+filtered_series = filter_frame(
+    measurement_series,
+    city=selected_city,
+    location=ALL_OPTION,
+    parameter=selected_parameter,
+    date_range=date_range,
+    parameter_column="parameter_code",
+    time_column="measured_hour",
 )
 filtered_alerts = filter_frame(
     alerts,
@@ -71,7 +134,7 @@ filtered_alerts = filter_frame(
     time_column="generated_at",
 )
 
-if filtered_measurements.empty:
+if filtered_measurements.empty or filtered_series.empty:
     st.info("No measurements match the selected filters.")
     st.stop()
 
@@ -101,45 +164,45 @@ st.divider()
 left, right = st.columns([2, 1])
 
 with left:
-    st.subheader("Trend chart")
-    chart_data = filtered_measurements.copy()
-    color_column = "parameter_code" if selected_parameter == ALL_OPTION else "location_name"
+    st.subheader("Measured history and forecast")
+    agg_data = (
+        filtered_series.groupby(["measured_hour", "city", "parameter_code"], as_index=False)
+        .agg(hourly_mean=("average_value", "mean"), measurement_count=("measurement_count", "sum"))
+        .sort_values("measured_hour")
+    )
+    chart = go.Figure()
+    for (city, parameter), group in agg_data.groupby(["city", "parameter_code"], sort=True):
+        group = group.sort_values("measured_hour")
+        label = f"{city} · {parameter}"
+        chart.add_trace(
+            go.Scatter(
+                x=group["measured_hour"],
+                y=group["hourly_mean"],
+                mode="lines",
+                name=label,
+                line=dict(width=2),
+            )
+        )
+        forecast = build_hourly_forecast(group, horizon_hours=forecast_horizon_hours)
+        if not forecast.empty:
+            chart.add_trace(
+                go.Scatter(
+                    x=forecast["measured_hour"],
+                    y=forecast["forecast_value"],
+                    mode="lines",
+                    name=f"{label} forecast",
+                    line=dict(width=2, dash="dash"),
+                )
+            )
 
-    # Aggregate to hourly means for clean visualization
-    chart_data["hour"] = chart_data["measured_at"].dt.floor("h")
-    num_series = chart_data[color_column].nunique()
-    if num_series > 5:
-        agg_data = (
-            chart_data.groupby(["hour", color_column], as_index=False)["value"]
-            .mean()
-            .rename(columns={"value": "hourly_mean"})
-            .sort_values("hour")
-        )
-        chart = px.line(
-            agg_data,
-            x="hour",
-            y="hourly_mean",
-            color=color_column,
-            markers=True,
-            labels={"hour": "Time", "hourly_mean": "Hourly mean"},
-        )
-        st.caption("Showing hourly averages (many series aggregated).")
-    else:
-        agg_data = (
-            chart_data.groupby(["hour", color_column], as_index=False)["value"]
-            .mean()
-            .rename(columns={"value": "hourly_mean"})
-            .sort_values("hour")
-        )
-        chart = px.line(
-            agg_data,
-            x="hour",
-            y="hourly_mean",
-            color=color_column,
-            markers=True,
-            labels={"hour": "Time", "hourly_mean": "Hourly mean"},
-        )
-    chart.update_layout(height=380, margin=dict(l=10, r=10, t=20, b=10), legend_title_text="")
+    chart.update_layout(
+        height=430,
+        margin=dict(l=10, r=10, t=20, b=10),
+        legend_title_text="",
+        xaxis_title="Time",
+        yaxis_title="Hourly mean concentration",
+    )
+    st.caption("Solid lines are measured hourly means. Dashed lines are per-city/per-pollutant model forecasts.")
     st.plotly_chart(chart, use_container_width=True)
 
 with right:
